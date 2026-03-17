@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket</title>
+    <style>
+        body { font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .ticket {
+            width: 300px;
+            border: 1px dashed #333;
+            padding: 20px;
+            font-size: 14px;
+        }
+        .ticket h2 { text-align: center; font-size: 18px; margin: 0 0 5px 0; }
+        .ticket .pedido { text-align: center; font-size: 16px; margin: 5px 0; }
+        .ticket .fecha { text-align: center; font-size: 12px; margin-bottom: 10px; }
+        .linea { border-top: 1px dashed #333; margin: 8px 0; }
+        .item { display: flex; justify-content: space-between; margin: 4px 0; }
+        .btn {
+            margin-top: 20px; padding: 10px 30px;
+            background-color: #27ae60; color: white;
+            border: none; border-radius: 5px; cursor: pointer; font-size: 16px;
+            text-decoration: none;
+        }
+        .btn:hover { background-color: #219150; }
+    </style>
+</head>
+<body>
+    <div class="ticket">
+        <h2>TOCKE SAN FELIPE</h2>
+        <p class="pedido">- Pedido: {{.IDPedido}} -</p>
+        <p class="fecha">{{.Fecha}}</p>
+        <p class="pedido">Cliente: {{.Cliente}}</p>
+        <div class="linea"></div>
+        {{range .Items}}
+        <div class="item">
+            <span>{{.Cantidad}}x {{.Nombre}}</span>
+        </div>
+        {{range .Modificadores}}
+        <div style="padding-left: 15px; font-size: 12px;">- {{.}}</div>
+        {{end}}
+        <div class="linea"></div>
+        {{end}}
+    </div>
+<button class="btn" onclick="window.print()" style="background-color: #2980b9;">Imprimir</button>
+    <a class="btn" href="/">Volver al inicio</a>
+</body>
+</html>

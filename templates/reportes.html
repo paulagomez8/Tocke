@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes - Tocke San Felipe</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
+        th { background-color: #f4f4f4; font-weight: bold; }
+        tr:hover { background-color: #fafafa; }
+        .back { color: #333; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+        .vacio { color: #999; font-size: 14px; padding: 10px 0; }
+        .total { font-weight: bold; color: #27ae60; }
+    </style>
+</head>
+<body>
+    <a class="back" href="/">← Volver al inicio</a>
+    <h1>Reportes</h1>
+
+    <h2>Ventas por Mes</h2>
+    {{if .VentasMes}}
+    <table>
+        <tr><th>Mes</th><th>Pedidos</th><th>Total</th></tr>
+        {{range .VentasMes}}
+        <tr>
+            <td>{{.Mes}}</td>
+            <td>{{.Pedidos}}</td>
+            <td class="total">${{.Total}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+    <p class="vacio">No hay datos aún</p>
+    {{end}}
+
+    <h2>Ventas por Día (últimos 30 días)</h2>
+    {{if .VentasDia}}
+    <table>
+        <tr><th>Fecha</th><th>Pedidos</th><th>Total</th></tr>
+        {{range .VentasDia}}
+        <tr>
+            <td>{{.Fecha}}</td>
+            <td>{{.Pedidos}}</td>
+            <td class="total">${{.Total}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+    <p class="vacio">No hay datos aún</p>
+    {{end}}
+
+    <h2>Productos Más Vendidos</h2>
+    {{if .ProductosTop}}
+    <table>
+        <tr><th>Producto</th><th>Cantidad</th><th>Total</th></tr>
+        {{range .ProductosTop}}
+        <tr>
+            <td>{{.Nombre}}</td>
+            <td>{{.Cantidad}}</td>
+            <td class="total">${{.Total}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+    <p class="vacio">No hay datos aún</p>
+    {{end}}
+
+</body>
+</html>

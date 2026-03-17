@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo Pedido</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #333; font-size: 24px; }
+        .contenido { width: 400px; }
+        .categoria { margin-bottom: 6px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden; }
+        .categoria-header { background-color: #f4f4f4; padding: 10px 14px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; justify-content: space-between; }
+        .categoria-header:hover { background-color: #e8e8e8; }
+        .categoria-body { display: none; }
+        .categoria-body.abierto { display: block; }
+        .producto-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-top: 1px solid #ddd; font-size: 15px; }
+        .btn-agregar { padding: 4px 12px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-agregar:hover { background-color: #219150; }
+        .pedido-actual { width: 400px; margin-top: 20px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden; }
+        .pedido-actual h2 { background: #f4f4f4; margin: 0; padding: 10px 14px; font-size: 16px; }
+        .pedido-item { padding: 8px 12px; border-top: 1px solid #ddd; font-size: 14px; }
+        .pedido-item .mods { font-size: 12px; color: #666; padding-left: 10px; }
+        .pedido-item .btn-quitar { float: right; background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+        .modificadores-popup { background: #fafafa; padding: 8px 12px; border-top: 1px solid #eee; font-size: 13px; display: none; }
+        .modificadores-popup.activo { display: block; }
+        .modificadores-popup label { margin-right: 15px; }
+        .btn-confirmar-item { margin-top: 6px; padding: 4px 12px; background: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn { margin-top: 15px; padding: 10px 25px; background-color: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 400px; }
+        .btn:hover { background-color: #219150; }
+        .back { color: #333; text-decoration: none; margin-bottom: 15px; font-size: 15px; align-self: flex-start; padding-left: calc(50% - 200px); }
+        .vacio { padding: 10px 14px; font-size: 13px; color: #999; }
+    </style>
+</head>
+<body>
+    <a class="back" href="/">← Volver</a>
+    <h1>Nuevo Pedido</h1>
+
+    <!-- Categorias y productos -->
+    <div class="contenido">
+        {{range .}}
+        <div class="categoria">
+            <div class="categoria-header" onclick="toggle(this)">
+                <span>{{.Nombre}}</span>
+                <span>▼</span>
+            </div>
+            <div class="categoria-body">
+                {{range .Productos}}
+                <div class="producto-row" id="prod-{{.ID}}">
+                    <span>{{.Nombre}}</span>
+                    <button class="btn-agregar" onclick="agregar({{.ID}}, '{{.Nombre}}')">+ Agregar</button>
+                </div>
+                {{if .Modificadores}}
+                <div class="modificadores-popup" id="mods-{{.ID}}">
+                    {{range .Modificadores}}
+                    <label>
+                        <input type="checkbox" class="mod-check-{{.ID}}" data-mod-id="{{.ID}}" data-mod-nombre="{{.Nombre}}"> {{.Nombre}}
+                    </label>
+                    {{end}}
+                    <br>
+                    <button class="btn-confirmar-item" onclick="confirmarItem({{.ID}})">Confirmar</button>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Pedido actual -->
+    <div class="pedido-actual">
+        <h2>Pedido</h2>
+        <div id="lista-pedido"><div class="vacio">Sin productos aún</div></div>
+    </div>
+
+    <!-- Formulario oculto -->
+    <form method="POST" action="/confirmar-pedido" id="formPedido">
+        <input type="hidden" name="pedido_json" id="pedido_json">
+        <input type="text" name="cliente" id="cliente" placeholder="Nombre del cliente" required
+            style="width: 400px; padding: 10px; margin-top: 15px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+        <button class="btn" type="submit">Confirmar Pedido</button>
+    </form>
+
+    <script>
+        let pedido = [];
+        let itemActual = null;
+
+        function toggle(header) {
+            const body = header.nextElementSibling;
+            body.classList.toggle('abierto');
+            header.querySelector('span:last-child').textContent =
+                body.classList.contains('abierto') ? '▲' : '▼';
+        }
+
+        function agregar(idPro, nombre) {
+            // Cerrar cualquier popup abierto
+            document.querySelectorAll('.modificadores-popup.activo').forEach(p => {
+                p.classList.remove('activo');
+                p.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+            });
+
+            const popup = document.getElementById('mods-' + idPro);
+            if (popup) {
+                itemActual = { idPro, nombre };
+                popup.classList.add('activo');
+            } else {
+                // Sin modificadores, agregar directo
+                agregarAlPedido(idPro, nombre, []);
+            }
+        }
+
+        function confirmarItem(idPro) {
+            const popup = document.getElementById('mods-' + idPro);
+            const mods = [];
+            popup.querySelectorAll('input[type=checkbox]:checked').forEach(c => {
+                mods.push({ id: c.dataset.modId, nombre: c.dataset.modNombre });
+            });
+            agregarAlPedido(idPro, itemActual.nombre, mods);
+            popup.classList.remove('activo');
+            popup.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+            itemActual = null;
+        }
+
+        function agregarAlPedido(idPro, nombre, mods) {
+            const item = { idPro, nombre, mods, key: Date.now() };
+            pedido.push(item);
+            renderPedido();
+        }
+
+        function quitarItem(key) {
+            pedido = pedido.filter(i => i.key !== key);
+            renderPedido();
+        }
+
+        function renderPedido() {
+            const lista = document.getElementById('lista-pedido');
+            if (pedido.length === 0) {
+                lista.innerHTML = '<div class="vacio">Sin productos aún</div>';
+                return;
+            }
+            lista.innerHTML = pedido.map(item => `
+                <div class="pedido-item">
+                    <button class="btn-quitar" onclick="quitarItem(${item.key})">✕</button>
+                    <strong>${item.nombre}</strong>
+                    ${item.mods.length > 0 ? '<div class="mods">' + item.mods.map(m => '- ' + m.nombre).join('<br>') + '</div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('formPedido').addEventListener('submit', function(e) {
+            if (pedido.length === 0) {
+                e.preventDefault();
+                alert('Agrega al menos un producto al pedido');
+                return;
+            }
+            document.getElementById('pedido_json').value = JSON.stringify(pedido);
+        });
+    </script>
+</body>
+</html>
