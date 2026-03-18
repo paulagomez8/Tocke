@@ -45,5 +45,5 @@ func main() {
 	r.GET("/reportes/exportar", proteger(reportes.ExportarExcel))
 	r.POST("/admin/credenciales", proteger(admin.CambiarCredenciales))
 	log.Println("Servidor corriendo en http://localhost:8080")
-	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(":80", r.Handler))
 }

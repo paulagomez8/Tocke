@@ -25,7 +25,7 @@
         .btn:hover { background-color: #219150; }
     </style>
 </head>
-<body>
+<body onload="window.print()">
     <div class="ticket">
         <h2>TOCKE SAN FELIPE</h2>
         <p class="pedido">- Pedido: {{.IDPedido}} -</p>
@@ -42,7 +42,5 @@
         <div class="linea"></div>
         {{end}}
     </div>
-<button class="btn" onclick="window.print()" style="background-color: #2980b9;">Imprimir</button>
-    <a class="btn" href="/">Volver al inicio</a>
 </body>
 </html>
