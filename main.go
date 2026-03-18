@@ -42,6 +42,8 @@ func main() {
 	r.POST("/admin/modificador/agregar/{id}", proteger(admin.AgregarModificador))
 	r.GET("/admin/modificador/eliminar/{id}", proteger(admin.EliminarModificador))
 	r.GET("/reportes", proteger(reportes.VerReportes))
+	r.GET("/reportes/exportar", proteger(reportes.ExportarExcel))
+	r.POST("/admin/credenciales", proteger(admin.CambiarCredenciales))
 	log.Println("Servidor corriendo en http://localhost:8080")
 	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))
 }

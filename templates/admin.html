@@ -35,8 +35,8 @@
     <!-- Categorias -->
     <div class="seccion">
         <h2>Categorías</h2>
-        <form class="form-inline" method="POST" action="/admin/categoria/agregar">
-            <input type="text" name="nombre" placeholder="Nueva categoría" required>
+<form class="form-inline" method="POST" action="/admin/credenciales" autocomplete="off"></form>           
+ <input type="text" name="nombre" placeholder="Nueva categoría" required>
             <button class="btn btn-green" type="submit">+ Agregar</button>
         </form>
         <table>
@@ -118,6 +118,15 @@
             </tr>
             {{end}}
         </table>
+    </div>
+    <!-- Cambiar credenciales -->
+    <div class="seccion">
+        <h2>Cambiar Usuario y Contraseña</h2>
+        <form class="form-inline" method="POST" action="/admin/credenciales">
+            <input type="text" name="nombre" placeholder="Nuevo usuario" required>
+            <input type="password" name="password" placeholder="Nueva contraseña" required>
+            <button class="btn btn-blue" type="submit">Guardar</button>
+        </form>
     </div>
     <!-- Modal editar producto -->
     <div class="modal" id="modalEditar">

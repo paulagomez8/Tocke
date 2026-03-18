@@ -43,7 +43,7 @@ func Login(ctx *fasthttp.RequestCtx) {
 <body>
     <div class="box">
         <h2>Tocke San Felipe</h2>
-        <form method="POST" action="/login">
+        <form method="POST" action="/login" autocomplete="off">
             <input type="text" name="usuario" placeholder="Usuario" required>
             <input type="password" name="password" placeholder="Contraseña" required>
             <button class="btn" type="submit">Entrar</button>

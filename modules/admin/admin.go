@@ -7,6 +7,7 @@ import (
 	"tockesanfelipe/modules/bases"
 
 	"github.com/valyala/fasthttp"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Producto struct {
@@ -143,4 +144,19 @@ type Modificador struct {
 	ID     int
 	IDPro  int
 	Nombre string
+}
+
+func CambiarCredenciales(ctx *fasthttp.RequestCtx) {
+	nombre := string(ctx.FormValue("nombre"))
+	password := string(ctx.FormValue("password"))
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Println("Error al generar hash:", err)
+		ctx.Error("Error al cambiar credenciales", 500)
+		return
+	}
+
+	bases.DB.Exec("UPDATE usuarios SET nombre=?, password=? WHERE id_usr=1", nombre, string(hash))
+	ctx.Redirect("/admin", 302)
 }

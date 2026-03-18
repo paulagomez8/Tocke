@@ -137,8 +137,9 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	}
 
 	result, err := bases.DB.Exec(
-		"INSERT INTO pedidos (fecha, total) VALUES (?, 0)",
-		time.Now(),
+
+		"INSERT INTO pedidos (fecha, total, cliente) VALUES (?, 0, ?)",
+		time.Now(), cliente,
 	)
 	if err != nil {
 		log.Println("Error al crear pedido:", err)
