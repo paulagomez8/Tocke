@@ -118,9 +118,7 @@
                 itemActual = { idPro, nombre, cant };
                 popup.classList.add('activo');
             } else {
-                for (let i = 0; i < cant; i++) {
-                    agregarAlPedido(idPro, nombre, []);
-                }
+                agregarAlPedido(idPro, nombre, [], cant);
                 document.getElementById('cant-' + idPro).textContent = 1;
             }
         }
@@ -131,18 +129,25 @@
             popup.querySelectorAll('input[type=checkbox]:checked').forEach(c => {
                 mods.push({ id: c.dataset.modId, nombre: c.dataset.modNombre });
             });
-            for (let i = 0; i < itemActual.cant; i++) {
-                agregarAlPedido(idPro, itemActual.nombre, mods);
-            }
+            agregarAlPedido(idPro, itemActual.nombre, mods, itemActual.cant);
             popup.classList.remove('activo');
             popup.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
             document.getElementById('cant-' + idPro).textContent = 1;
             itemActual = null;
         }
 
-        function agregarAlPedido(idPro, nombre, mods) {
-            const item = { idPro, nombre, mods, key: Date.now() };
-            pedido.push(item);
+        function agregarAlPedido(idPro, nombre, mods, cant) {
+            // Buscar si ya existe el mismo producto con los mismos modificadores
+            const modsKey = mods.map(m => m.id).sort().join(',');
+            const existente = pedido.find(i => 
+                i.idPro === idPro && 
+                i.mods.map(m => m.id).sort().join(',') === modsKey
+            );
+            if (existente) {
+                existente.cant += cant;
+            } else {
+                pedido.push({ idPro, nombre, mods, cant, key: Date.now() });
+            }
             renderPedido();
         }
 
@@ -160,7 +165,7 @@
             lista.innerHTML = pedido.map(item => `
                 <div class="pedido-item">
                     <button class="btn-quitar" onclick="quitarItem(${item.key})">✕</button>
-                    <strong>${item.nombre}</strong>
+                    <strong>${item.cant}x ${item.nombre}</strong>
                     ${item.mods.length > 0 ? '<div class="mods">' + item.mods.map(m => '- ' + m.nombre).join('<br>') + '</div>' : ''}
                 </div>
             `).join('');
@@ -172,7 +177,14 @@
                 alert('Agrega al menos un producto al pedido');
                 return;
             }
-            document.getElementById('pedido_json').value = JSON.stringify(pedido);
+            // Expandir items con cantidad > 1 para enviar al servidor
+            let itemsExpandidos = [];
+            pedido.forEach(item => {
+                for (let i = 0; i < item.cant; i++) {
+                    itemsExpandidos.push({ idPro: item.idPro, nombre: item.nombre, mods: item.mods });
+                }
+            });
+            document.getElementById('pedido_json').value = JSON.stringify(itemsExpandidos);
         });
     </script>
 </body>
