@@ -77,7 +77,6 @@ func NuevoPedido(ctx *fasthttp.RequestCtx) {
 		categoriasMap[nombreCat].Productos = append(categoriasMap[nombreCat].Productos, p)
 	}
 
-	// Obtener modificadores
 	rowsMod, err := bases.DB.Query("SELECT id_mod, id_pro, nombre FROM modificadores")
 	if err == nil {
 		defer rowsMod.Close()
@@ -91,7 +90,6 @@ func NuevoPedido(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	// Actualizar productos en categorias con modificadores
 	for _, cat := range categoriasMap {
 		for i, p := range cat.Productos {
 			if prod, existe := productosMap[p.ID]; existe {
@@ -137,7 +135,6 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	}
 
 	result, err := bases.DB.Exec(
-
 		"INSERT INTO pedidos (fecha, total, cliente) VALUES (?, 0, ?)",
 		time.Now(), cliente,
 	)
@@ -149,7 +146,14 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 
 	idPedido, _ := result.LastInsertId()
 	total := 0
-	var items []impresora.ItemTicket
+
+	type ItemAgrupado struct {
+		Nombre   string
+		Cantidad int
+		Mods     []string
+	}
+	agrupados := map[string]*ItemAgrupado{}
+	var ordenAgrupado []string
 
 	for _, item := range itemsJSON {
 		var precio int
@@ -161,24 +165,39 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		)
 		total += precio
 
-		var mods []string
+		var modNombres []string
 		for _, mod := range item.Mods {
 			idMod, _ := strconv.Atoi(mod.ID)
 			bases.DB.Exec(
 				"INSERT INTO pedidos_modificadores (id_ped, id_pro, id_mod) VALUES (?, ?, ?)",
 				idPedido, item.IDPro, idMod,
 			)
-			mods = append(mods, mod.Nombre)
+			modNombres = append(modNombres, mod.Nombre)
 		}
 
-		items = append(items, impresora.ItemTicket{
-			Cantidad:      1,
-			Nombre:        item.Nombre,
-			Modificadores: mods,
-		})
+		modsKey := item.Nombre
+		for _, m := range modNombres {
+			modsKey += "_" + m
+		}
+
+		if _, existe := agrupados[modsKey]; !existe {
+			agrupados[modsKey] = &ItemAgrupado{Nombre: item.Nombre, Cantidad: 0, Mods: modNombres}
+			ordenAgrupado = append(ordenAgrupado, modsKey)
+		}
+		agrupados[modsKey].Cantidad++
 	}
 
 	bases.DB.Exec("UPDATE pedidos SET total = ? WHERE id_ped = ?", total, idPedido)
+
+	var items []impresora.ItemTicket
+	for _, key := range ordenAgrupado {
+		a := agrupados[key]
+		items = append(items, impresora.ItemTicket{
+			Cantidad:      a.Cantidad,
+			Nombre:        a.Nombre,
+			Modificadores: a.Mods,
+		})
+	}
 
 	err = impresora.ImprimirTicket(int(idPedido), cliente, items)
 	if err != nil {
