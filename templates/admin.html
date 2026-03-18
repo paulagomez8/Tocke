@@ -57,8 +57,8 @@
     <!-- Productos -->
     <div class="seccion">
         <h2>Productos</h2>
-        <form class="form-inline" method="POST" action="/admin/producto/agregar">
-            <input type="text" name="nombre" placeholder="Nombre" required>
+<form class="form-inline" method="POST" action="/admin/categoria/agregar" autocomplete="off"></form>
+        <input type="text" name="nombre" placeholder="Nombre" required>
             <input type="number" name="precio" placeholder="Precio" required style="width:100px">
             <select name="id_cat" required>
                 {{range .Categorias}}
