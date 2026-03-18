@@ -14,6 +14,10 @@
         .categoria-body.abierto { display: block; }
         .producto-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-top: 1px solid #ddd; font-size: 15px; }
         .btn-agregar { padding: 4px 12px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .cantidad-control { display: flex; align-items: center; gap: 5px; }
+        .btn-cant { width: 28px; height: 28px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .btn-cant:hover { background: #f4f4f4; }
+        .cant-num { width: 30px; text-align: center; font-size: 15px; font-weight: bold; }
         .btn-agregar:hover { background-color: #219150; }
         .pedido-actual { width: 400px; margin-top: 20px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden; }
         .pedido-actual h2 { background: #f4f4f4; margin: 0; padding: 10px 14px; font-size: 16px; }
@@ -44,9 +48,14 @@
             </div>
             <div class="categoria-body">
                 {{range .Productos}}
-                <div class="producto-row" id="prod-{{.ID}}">
+               <div class="producto-row" id="prod-{{.ID}}">
                     <span>{{.Nombre}}</span>
-                    <button class="btn-agregar" onclick="agregar({{.ID}}, '{{.Nombre}}')">+ Agregar</button>
+                    <div class="cantidad-control">
+                        <button class="btn-cant" onclick="cambiarCant({{.ID}}, -1)">−</button>
+                        <span class="cant-num" id="cant-{{.ID}}">1</span>
+                        <button class="btn-cant" onclick="cambiarCant({{.ID}}, 1)">+</button>
+                        <button class="btn-agregar" onclick="agregar({{.ID}}, '{{.Nombre}}')">Agregar</button>
+                    </div>
                 </div>
                 {{if .Modificadores}}
                 <div class="modificadores-popup" id="mods-{{.ID}}">
@@ -90,8 +99,15 @@
                 body.classList.contains('abierto') ? '▲' : '▼';
         }
 
+        function cambiarCant(idPro, delta) {
+            const el = document.getElementById('cant-' + idPro);
+            let cant = parseInt(el.textContent) + delta;
+            if (cant < 1) cant = 1;
+            el.textContent = cant;
+        }
+
         function agregar(idPro, nombre) {
-            // Cerrar cualquier popup abierto
+            const cant = parseInt(document.getElementById('cant-' + idPro).textContent);
             document.querySelectorAll('.modificadores-popup.activo').forEach(p => {
                 p.classList.remove('activo');
                 p.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
@@ -99,11 +115,13 @@
 
             const popup = document.getElementById('mods-' + idPro);
             if (popup) {
-                itemActual = { idPro, nombre };
+                itemActual = { idPro, nombre, cant };
                 popup.classList.add('activo');
             } else {
-                // Sin modificadores, agregar directo
-                agregarAlPedido(idPro, nombre, []);
+                for (let i = 0; i < cant; i++) {
+                    agregarAlPedido(idPro, nombre, []);
+                }
+                document.getElementById('cant-' + idPro).textContent = 1;
             }
         }
 
@@ -113,9 +131,12 @@
             popup.querySelectorAll('input[type=checkbox]:checked').forEach(c => {
                 mods.push({ id: c.dataset.modId, nombre: c.dataset.modNombre });
             });
-            agregarAlPedido(idPro, itemActual.nombre, mods);
+            for (let i = 0; i < itemActual.cant; i++) {
+                agregarAlPedido(idPro, itemActual.nombre, mods);
+            }
             popup.classList.remove('activo');
             popup.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+            document.getElementById('cant-' + idPro).textContent = 1;
             itemActual = null;
         }
 
