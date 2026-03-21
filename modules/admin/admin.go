@@ -133,16 +133,28 @@ func EliminarCategoria(ctx *fasthttp.RequestCtx) {
 	bases.DB.Exec("DELETE FROM categorias WHERE id_cat=?", id)
 	ctx.Redirect("/admin", 302)
 }
-
+func EditarCategoria(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	nombre := string(ctx.FormValue("nombre"))
+	bases.DB.Exec("UPDATE categorias SET nombre=? WHERE id_cat=?", nombre, id)
+	ctx.Redirect("/admin", 302)
+}
 func AgregarModificador(ctx *fasthttp.RequestCtx) {
 	idPro, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	nombre := string(ctx.FormValue("nombre"))
 	bases.DB.Exec("INSERT INTO modificadores (id_pro, nombre) VALUES (?, ?)", idPro, nombre)
 	ctx.Redirect("/admin", 302)
 }
+func EditarModificador(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	nombre := string(ctx.FormValue("nombre"))
+	bases.DB.Exec("UPDATE modificadores SET nombre=? WHERE id_mod=?", nombre, id)
+	ctx.Redirect("/admin", 302)
+}
 
 func EliminarModificador(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	bases.DB.Exec("DELETE FROM pedidos_modificadores WHERE id_mod=?", id)
 	bases.DB.Exec("DELETE FROM modificadores WHERE id_mod=?", id)
 	ctx.Redirect("/admin", 302)
 }

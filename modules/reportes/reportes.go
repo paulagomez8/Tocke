@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"strconv"
 	"tockesanfelipe/modules/bases"
 
 	"github.com/valyala/fasthttp"
@@ -105,6 +106,27 @@ func VerReportes(ctx *fasthttp.RequestCtx) {
 	tmpl.Execute(ctx, data)
 }
 
+type Turno struct {
+	ID     int
+	Nombre string
+	Inicio string
+	Fin    string
+}
+
+func AbrirTurno(ctx *fasthttp.RequestCtx) {
+	nombre := string(ctx.FormValue("nombre"))
+	if nombre == "" {
+		nombre = "Turno"
+	}
+	bases.DB.Exec("INSERT INTO turnos (nombre, inicio, fin) VALUES (?, NOW(), NULL)", nombre)
+	ctx.Redirect("/", 302)
+}
+
+func CerrarTurno(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	bases.DB.Exec("UPDATE turnos SET fin = NOW() WHERE id_turno = ?", id)
+	ctx.Redirect("/", 302)
+}
 func ExportarExcel(ctx *fasthttp.RequestCtx) {
 	f := excelize.NewFile()
 

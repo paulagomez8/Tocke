@@ -25,12 +25,13 @@
         .btn:hover { background-color: #219150; }
     </style>
 </head>
-<body onload="window.print()">
-    <div class="ticket">
+<body>
+    </body>    <div class="ticket">
         <h2>TOCKE SAN FELIPE</h2>
         <p class="pedido">- Pedido: {{.IDPedido}} -</p>
         <p class="fecha">{{.Fecha}}</p>
         <p class="pedido">Cliente: {{.Cliente}}</p>
+        <p class="pedido">Tipo: {{.TipoPedido}}</p>
         <div class="linea"></div>
         {{range .Items}}
         <div class="item">

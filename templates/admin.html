@@ -31,6 +31,7 @@
 <body>
     <a class="back" href="/">← Volver al inicio</a>
     <h1>Administración</h1>
+
     <div class="seccion">
         <h2>Categorías</h2>
         <form class="form-inline" method="POST" action="/admin/categoria/agregar">
@@ -42,15 +43,15 @@
             {{range .Categorias}}
             <tr>
                 <td>{{.Nombre}}</td>
-                <td>
-                    <a href="/admin/categoria/eliminar/{{.ID}}" onclick="return confirm('¿Eliminar categoría?')">
-                        <button class="btn btn-red">Eliminar</button>
-                    </a>
+                <td style="display:flex; gap:5px;">
+                    <button class="btn btn-blue" onclick="abrirEditarCat({{.ID}}, '{{.Nombre}}')">Editar</button>
+                    <button class="btn btn-red" onclick="if(confirm('¿Eliminar categoría?')) window.location='/admin/categoria/eliminar/{{.ID}}'">Eliminar</button>
                 </td>
             </tr>
             {{end}}
         </table>
     </div>
+
     <div class="seccion">
         <h2>Productos</h2>
         <form class="form-inline" method="POST" action="/admin/producto/agregar">
@@ -71,15 +72,14 @@
                 <td>${{.Precio}}</td>
                 <td>{{.Categoria}}</td>
                 <td style="display:flex; gap:5px;">
-                    <button class="btn btn-blue" onclick="abrirEditar({{.ID}}, `{{.Nombre}}`, {{.Precio}}, {{.IDCat}})">Editar</button>
-                    <a href="/admin/producto/eliminar/{{.ID}}" onclick="return confirm('¿Eliminar producto?')">
-                        <button class="btn btn-red">Eliminar</button>
-                    </a>
+                    <button class="btn btn-blue" onclick="abrirEditar({{.ID}}, '{{.Nombre}}', {{.Precio}}, {{.IDCat}})">Editar</button>
+                    <button class="btn btn-red" onclick="if(confirm('¿Eliminar producto?')) window.location='/admin/producto/eliminar/{{.ID}}'">Eliminar</button>
                 </td>
             </tr>
             {{end}}
         </table>
     </div>
+
     <div class="seccion">
         <h2>Modificadores por Producto</h2>
         <table>
@@ -92,14 +92,13 @@
             {{range $.Modificadores}}
             {{if eq .IDPro $idPro}}
             <tr>
-                <td></td>
-                <td>{{.Nombre}}</td>
-                <td>
-                    <a href="/admin/modificador/eliminar/{{.ID}}" onclick="return confirm('¿Eliminar?')">
-                        <button class="btn btn-red">Eliminar</button>
-                    </a>
-                </td>
-            </tr>
+    <td></td>
+    <td>{{.Nombre}}</td>
+    <td style="display:flex; gap:5px;">
+        <button class="btn btn-blue" onclick="abrirEditarMod({{.ID}}, '{{.Nombre}}')">Editar</button>
+        <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/admin/modificador/eliminar/{{.ID}}'">Eliminar</button>
+    </td>
+</tr>
             {{end}}
             {{end}}
             <tr>
@@ -114,6 +113,7 @@
             {{end}}
         </table>
     </div>
+
     <div class="seccion">
         <h2>Cambiar Usuario y Contraseña</h2>
         <form class="form-inline" method="POST" action="/admin/credenciales" autocomplete="off">
@@ -122,6 +122,8 @@
             <button class="btn btn-blue" type="submit">Guardar</button>
         </form>
     </div>
+
+    <!-- Modal editar producto -->
     <div class="modal" id="modalEditar">
         <div class="modal-box">
             <h3>Editar Producto</h3>
@@ -140,6 +142,33 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal editar categoria -->
+    <div class="modal" id="modalEditarCat">
+        <div class="modal-box">
+            <h3>Editar Categoría</h3>
+            <form method="POST" id="formEditarCat">
+                <input type="text" name="nombre" id="editNombreCat" placeholder="Nombre" required>
+                <div class="modal-btns">
+                    <button type="button" class="btn btn-red" onclick="cerrarEditarCat()">Cancelar</button>
+                    <button type="submit" class="btn btn-green">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- Modal editar modificador -->
+<div class="modal" id="modalEditarMod">
+    <div class="modal-box">
+        <h3>Editar Modificador</h3>
+        <form method="POST" id="formEditarMod">
+            <input type="text" name="nombre" id="editNombreMod" placeholder="Nombre" required>
+            <div class="modal-btns">
+                <button type="button" class="btn btn-red" onclick="cerrarEditarMod()">Cancelar</button>
+                <button type="submit" class="btn btn-green">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
     <script>
         function abrirEditar(id, nombre, precio, idCat) {
             document.getElementById('formEditar').action = '/admin/producto/editar/' + id;
@@ -151,6 +180,22 @@
         function cerrarEditar() {
             document.getElementById('modalEditar').classList.remove('activo');
         }
+        function abrirEditarCat(id, nombre) {
+            document.getElementById('formEditarCat').action = '/admin/categoria/editar/' + id;
+            document.getElementById('editNombreCat').value = nombre;
+            document.getElementById('modalEditarCat').classList.add('activo');
+        }
+        function cerrarEditarCat() {
+            document.getElementById('modalEditarCat').classList.remove('activo');
+        }
+        function abrirEditarMod(id, nombre) {
+    document.getElementById('formEditarMod').action = '/admin/modificador/editar/' + id;
+    document.getElementById('editNombreMod').value = nombre;
+    document.getElementById('modalEditarMod').classList.add('activo');
+}
+function cerrarEditarMod() {
+    document.getElementById('modalEditarMod').classList.remove('activo');
+}
     </script>
 </body>
 </html>

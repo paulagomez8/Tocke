@@ -23,7 +23,60 @@
     <h1>Tocke San Felipe</h1>
     <a class="btn-nuevo" href="/nuevo-pedido">+ Nuevo Pedido</a>
     <a class="btn-nuevo" href="/reportes" style="background-color: #8e44ad; font-size: 16px; padding: 12px 40px;">📊 Reportes</a>
+    <a class="btn-nuevo" href="/inventario" style="background-color: #e67e22; font-size: 16px; padding: 12px 40px;">📦 Inventario</a>
     <br><br>
     <a class="btn-nuevo" href="/admin" style="background-color: #2980b9; font-size: 16px; padding: 12px 40px;">⚙ Administración</a>
+
+    {{if .TurnoActivo}}
+    <div style="margin-top: 30px; padding: 15px; background: #eafaf1; border-radius: 8px; display: inline-block; min-width: 300px;">
+        <p style="margin: 0 0 10px 0; font-size: 16px;">🟢 <strong>{{.TurnoActivo.Nombre}}</strong> — desde {{.TurnoActivo.Inicio}}</p>
+        {{if .ProductosTurno}}
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            <tr style="background:#d5f5e3;">
+                <th style="padding: 6px 10px; text-align:left; font-size:14px;">Producto</th>
+                <th style="padding: 6px 10px; text-align:center; font-size:14px;">Cantidad</th>
+            </tr>
+            {{range .ProductosTurno}}
+            <tr>
+                <td style="padding: 6px 10px; font-size:14px; border-top: 1px solid #ddd;">{{.Nombre}}</td>
+                <td style="padding: 6px 10px; font-size:14px; border-top: 1px solid #ddd; text-align:center; font-weight:bold;">{{.Cantidad}}</td>
+            </tr>
+            {{end}}
+        </table>
+        {{else}}
+        <p style="color:#999; font-size:13px;">Sin ventas aún en este turno</p>
+        {{end}}
+        <form method="POST" action="/turno/cerrar/{{.TurnoActivo.ID}}">
+            <button type="submit" style="padding: 8px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Cerrar turno</button>
+        </form>
+    </div>
+    {{else}}
+    <div style="margin-top: 30px;">
+        <form method="POST" action="/turno/abrir" style="display: inline-flex; gap: 10px; align-items: center;">
+            <input type="text" name="nombre" placeholder="Nombre del turno"
+                style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            <button type="submit" class="btn-nuevo" style="background-color: #27ae60; font-size: 16px; padding: 10px 25px;">🟢 Abrir turno</button>
+        </form>
+    </div>
+    {{end}}
+
+    <div style="margin-top: 20px;">
+        <h3 style="color:#333; margin-bottom: 10px;">Mesas y Barra</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+            {{range .Mesas}}
+<div style="padding: 8px 10px; border-radius: 8px; font-size: 12px; min-width: 80px; text-align: center;
+            {{if .Ocupada}}background:#fdecea; border: 1px solid #e74c3c;{{else}}background:#eafaf1; border: 1px solid #27ae60;{{end}}">
+                <div style="font-weight:bold;">{{.Nombre}}</div>
+                <div style="font-size:12px; margin: 4px 0;">{{if .Ocupada}}🔴 Ocupada{{else}}🟢 Libre{{end}}</div>
+                {{if .Ocupada}}
+                <form method="POST" action="/mesa/liberar/{{.ID}}">
+                    <button type="submit" style="padding: 4px 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Liberar</button>
+                </form>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+
 </body>
 </html>

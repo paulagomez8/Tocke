@@ -1,13 +1,15 @@
 package pedidos
 
 import (
+	"database/sql"
 	"encoding/json"
 	"html/template"
 	"log"
 	"strconv"
-	"time"
 	"tockesanfelipe/modules/bases"
 	"tockesanfelipe/modules/impresora"
+
+	"tockesanfelipe/modules/inventario"
 
 	"github.com/valyala/fasthttp"
 )
@@ -29,7 +31,77 @@ type Modificador struct {
 	Nombre string
 }
 
+type Mesa struct {
+	ID      int
+	Nombre  string
+	Ocupada bool
+}
+
 func Inicio(ctx *fasthttp.RequestCtx) {
+	type TurnoActivo struct {
+		ID     int
+		Nombre string
+		Inicio string
+	}
+	type ProductoTurno struct {
+		Nombre   string
+		Cantidad int
+	}
+	type InicioData struct {
+		TurnoActivo    *TurnoActivo
+		ProductosTurno []ProductoTurno
+		Mesas          []struct {
+			ID      int
+			Nombre  string
+			Ocupada bool
+		}
+	}
+
+	var data InicioData
+	row := bases.DB.QueryRow("SELECT id_turno, nombre, DATE_FORMAT(inicio, '%d/%m %H:%i'), inicio FROM turnos WHERE fin IS NULL ORDER BY id_turno DESC LIMIT 1")
+	var id int
+	var nombre, inicioFormateado, inicioRaw string
+	if err := row.Scan(&id, &nombre, &inicioFormateado, &inicioRaw); err != nil {
+		log.Println("Error scan turno:", err)
+	} else {
+		data.TurnoActivo = &TurnoActivo{id, nombre, inicioFormateado}
+
+		rows, err := bases.DB.Query(`
+    SELECT pr.nombre, SUM(pd.cantidad) as cantidad
+    FROM pedidos p
+    JOIN pedidos_detalle pd ON p.id_ped = pd.id_ped
+    JOIN productos pr ON pd.id_pro = pr.id_pro
+    WHERE p.fecha >= ?
+    GROUP BY pr.id_pro, pr.nombre
+    ORDER BY cantidad DESC
+`, inicioRaw)
+		if err != nil {
+			log.Println("Error query productos turno:", err)
+		} else {
+			defer rows.Close()
+			for rows.Next() {
+				var p ProductoTurno
+				rows.Scan(&p.Nombre, &p.Cantidad)
+				data.ProductosTurno = append(data.ProductosTurno, p)
+			}
+			log.Printf("Turno ID: %d inicio: %s productos: %d\n", id, inicioRaw, len(data.ProductosTurno))
+		}
+	}
+
+	rowsMesas, err := bases.DB.Query("SELECT id_mesa, nombre, ocupada FROM mesas ORDER BY id_mesa")
+	if err == nil {
+		defer rowsMesas.Close()
+		for rowsMesas.Next() {
+			var m struct {
+				ID      int
+				Nombre  string
+				Ocupada bool
+			}
+			rowsMesas.Scan(&m.ID, &m.Nombre, &m.Ocupada)
+			data.Mesas = append(data.Mesas, m)
+		}
+	}
+
 	tmpl, err := template.ParseFiles("templates/inicio.html")
 	if err != nil {
 		log.Println("Error al cargar template:", err)
@@ -37,7 +109,14 @@ func Inicio(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	ctx.SetContentType("text/html")
-	tmpl.Execute(ctx, nil)
+	tmpl.Execute(ctx, data)
+
+}
+
+func LiberarMesa(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	bases.DB.Exec("UPDATE mesas SET ocupada=0 WHERE id_mesa=?", id)
+	ctx.Redirect("/", 302)
 }
 
 func NuevoPedido(ctx *fasthttp.RequestCtx) {
@@ -102,6 +181,20 @@ func NuevoPedido(ctx *fasthttp.RequestCtx) {
 	for _, nombre := range orden {
 		categorias = append(categorias, *categoriasMap[nombre])
 	}
+	var mesas []Mesa
+	rowsMesas, err := bases.DB.Query("SELECT id_mesa, nombre, ocupada FROM mesas ORDER BY id_mesa")
+	if err == nil {
+		defer rowsMesas.Close()
+		for rowsMesas.Next() {
+			var m Mesa
+			rowsMesas.Scan(&m.ID, &m.Nombre, &m.Ocupada)
+			mesas = append(mesas, m)
+		}
+	}
+	type NuevoPedidoData struct {
+		Categorias []Categoria
+		Mesas      []Mesa
+	}
 
 	tmpl, err := template.ParseFiles("templates/pedido.html")
 	if err != nil {
@@ -110,13 +203,16 @@ func NuevoPedido(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	ctx.SetContentType("text/html")
-	tmpl.Execute(ctx, categorias)
+	tmpl.Execute(ctx, NuevoPedidoData{Categorias: categorias, Mesas: mesas})
+
 }
 
 func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	args := ctx.Request.PostArgs()
 	cliente := string(args.Peek("cliente"))
+	tipoPedido := string(args.Peek("tipo_pedido"))
 	pedidoJSON := string(args.Peek("pedido_json"))
+	idMesa, _ := strconv.Atoi(string(args.Peek("id_mesa")))
 
 	type ItemJSON struct {
 		IDPro  int    `json:"idPro"`
@@ -134,17 +230,26 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	result, err := bases.DB.Exec(
-		"INSERT INTO pedidos (fecha, total, cliente) VALUES (?, 0, ?)",
-		time.Now(), cliente,
-	)
+	var result sql.Result
+	var err error
+	if idMesa > 0 {
+		result, err = bases.DB.Exec(
+			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido, id_mesa) VALUES (NOW(), 0, ?, ?, ?)",
+			cliente, tipoPedido, idMesa,
+		)
+	} else {
+		result, err = bases.DB.Exec(
+			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido) VALUES (NOW(), 0, ?, ?)",
+			cliente, tipoPedido,
+		)
+	}
 	if err != nil {
 		log.Println("Error al crear pedido:", err)
 		ctx.Error("Error al crear pedido", 500)
 		return
 	}
-
 	idPedido, _ := result.LastInsertId()
+	log.Printf("Pedido creado: %d cliente: %s items: %d\n", idPedido, cliente, len(itemsJSON))
 	total := 0
 
 	type ItemAgrupado struct {
@@ -158,7 +263,6 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	for _, item := range itemsJSON {
 		var precio int
 		bases.DB.QueryRow("SELECT precio FROM productos WHERE id_pro = ?", item.IDPro).Scan(&precio)
-
 		bases.DB.Exec(
 			"INSERT INTO pedidos_detalle (id_ped, id_pro, cantidad, precio) VALUES (?, ?, 1, ?)",
 			idPedido, item.IDPro, precio,
@@ -189,6 +293,10 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 
 	bases.DB.Exec("UPDATE pedidos SET total = ? WHERE id_ped = ?", total, idPedido)
 
+	if idMesa > 0 {
+		bases.DB.Exec("UPDATE mesas SET ocupada=1 WHERE id_mesa=?", idMesa)
+	}
+
 	var items []impresora.ItemTicket
 	for _, key := range ordenAgrupado {
 		a := agrupados[key]
@@ -204,26 +312,6 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		log.Println("Advertencia - impresora no disponible:", err)
 	}
 
-	type TicketData struct {
-		IDPedido int64
-		Fecha    string
-		Cliente  string
-		Items    []impresora.ItemTicket
-	}
-
-	data := TicketData{
-		IDPedido: idPedido,
-		Fecha:    time.Now().Format("02/01/2006 15:04:05"),
-		Cliente:  cliente,
-		Items:    items,
-	}
-
-	tmpl, err := template.ParseFiles("templates/ticket.html")
-	if err != nil {
-		log.Println("Error al cargar template:", err)
-		ctx.Redirect("/", 302)
-		return
-	}
-	ctx.SetContentType("text/html")
-	tmpl.Execute(ctx, data)
+	inventario.DescontarStock(idPedido)
+	ctx.Redirect("/", 302)
 }

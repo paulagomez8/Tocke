@@ -5,6 +5,7 @@ import (
 	"tockesanfelipe/modules/admin"
 	"tockesanfelipe/modules/auth"
 	"tockesanfelipe/modules/bases"
+	"tockesanfelipe/modules/inventario"
 	"tockesanfelipe/modules/pedidos"
 	"tockesanfelipe/modules/reportes"
 
@@ -44,6 +45,18 @@ func main() {
 	r.GET("/reportes", proteger(reportes.VerReportes))
 	r.GET("/reportes/exportar", proteger(reportes.ExportarExcel))
 	r.POST("/admin/credenciales", proteger(admin.CambiarCredenciales))
+	r.GET("/inventario", proteger(inventario.VerInventario))
+	r.POST("/inventario/ingrediente/agregar", proteger(inventario.AgregarIngrediente))
+	r.POST("/inventario/ingrediente/editar/{id}", proteger(inventario.EditarStock))
+	r.GET("/inventario/ingrediente/eliminar/{id}", proteger(inventario.EliminarIngrediente))
+	r.POST("/inventario/receta/agregar/{id}", proteger(inventario.AgregarReceta))
+	r.GET("/inventario/receta/eliminar/{idpro}/{idping}", proteger(inventario.EliminarReceta))
+	r.POST("/admin/categoria/editar/{id}", proteger(admin.EditarCategoria))
+	r.POST("/admin/modificador/editar/{id}", proteger(admin.EditarModificador))
+	r.POST("/mesa/liberar/{id}", proteger(pedidos.LiberarMesa))
+	r.POST("/turno/abrir", proteger(reportes.AbrirTurno))
+	r.POST("/turno/cerrar/{id}", proteger(reportes.CerrarTurno))
+
 	log.Println("Servidor corriendo en http://localhost:8080")
-	log.Fatal(fasthttp.ListenAndServe(":80", r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))
 }

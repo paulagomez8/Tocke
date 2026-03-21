@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario - Tocke San Felipe</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
+        th { background-color: #f4f4f4; }
+        input[type=text], input[type=number], select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .btn { padding: 7px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; color: white; }
+        .btn-green { background-color: #27ae60; }
+        .btn-green:hover { background-color: #219150; }
+        .btn-red { background-color: #e74c3c; }
+        .btn-red:hover { background-color: #c0392b; }
+        .btn-blue { background-color: #2980b9; }
+        .back { color: #333; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+        .form-inline { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .seccion { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 25px; }
+        .alerta { background-color: #ffeeba; color: #856404; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal.activo { display: flex; }
+        .modal-box { background: white; padding: 25px; border-radius: 8px; width: 350px; }
+        .modal-box h3 { margin-top: 0; }
+        .modal-box input { width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    </style>
+</head>
+<body>
+    <a class="back" href="/">← Volver al inicio</a>
+    <h1>Inventario</h1>
+
+    <!-- Ingredientes -->
+    <div class="seccion">
+        <h2>Ingredientes</h2>
+        <form class="form-inline" method="POST" action="/inventario/ingrediente/agregar">
+            <input type="text" name="nombre" placeholder="Nombre" required>
+            <input type="number" name="stock" placeholder="Stock inicial" required style="width:120px">
+            <input type="number" name="stock_minimo" placeholder="Stock mínimo" required style="width:130px">
+            <input type="text" name="unidad" placeholder="Unidad (kg, unidad...)" required style="width:150px">
+            <button class="btn btn-green" type="submit">+ Agregar</button>
+        </form>
+        <table>
+            <tr><th>Nombre</th><th>Stock</th><th>Mínimo</th><th>Unidad</th><th>Acciones</th></tr>
+            {{range .Ingredientes}}
+            <tr {{if .Alerta}}class="alerta"{{end}}>
+                <td>{{.Nombre}} {{if .Alerta}}⚠️{{end}}</td>
+                <td>{{.Stock}}</td>
+                <td>{{.StockMinimo}}</td>
+                <td>{{.Unidad}}</td>
+               <td style="display:flex; gap:5px;">
+<button class="btn btn-blue" onclick="abrirEditar({{.ID}}, '{{.Nombre}}', {{.Stock}}, {{.StockMinimo}})">Editar</button>
+                <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/ingrediente/eliminar/{{.ID}}'">Eliminar</button>
+</td>
+            </tr>
+            {{end}}
+        </table>
+    </div>
+
+  
+   <!-- Modal editar stock -->
+<div class="modal" id="modalEditar">
+    <div class="modal-box">
+        <h3>Editar Ingrediente</h3>
+        <form method="POST" id="formEditar">
+            <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
+            <input type="number" name="stock" id="editStock" placeholder="Stock actual" required>
+            <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required>
+            <div class="modal-btns">
+                <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
+                <button type="submit" class="btn btn-green">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <script>
+       function abrirEditar(id, nombre, stock, minimo) {
+    document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
+    document.getElementById('editNombre').value = nombre;
+    document.getElementById('editStock').value = stock;
+    document.getElementById('editMinimo').value = minimo;
+    document.getElementById('modalEditar').classList.add('activo');
+}
+function cerrarEditar() {
+    document.getElementById('modalEditar').classList.remove('activo');
+}
+    </script>
+</body>
+</html>

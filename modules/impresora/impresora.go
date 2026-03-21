@@ -2,7 +2,7 @@ package impresora
 
 import (
 	"fmt"
-	"os"
+	"net"
 	"time"
 )
 
@@ -12,35 +12,43 @@ type ItemTicket struct {
 	Modificadores []string
 }
 
-func ImprimirTicket(idPedido int, cliente string, items []ItemTicket) error {
-	printer, err := os.OpenFile("/dev/usb/lp0", os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("no se pudo abrir la impresora: %v", err)
-	}
-	defer printer.Close()
+const (
+	// Cuando tengan la impresora por red, cambiar a "tcp" y poner la IP:puerto
+	// modoConexion = "tcp"
+	// direccion    = "192.168.1.100:9100"
+	modoConexion = "tcp"
+	direccion    = "192.168.1.100:9100" // <-- cambiar por la IP real de la impresora
+)
 
-	printer.Write([]byte{0x1B, 0x40})
-	printer.Write([]byte{0x1B, 0x61, 0x01})
-	printer.Write([]byte{0x1B, 0x21, 0x30})
-	fmt.Fprintln(printer, "TOCKE SAN FELIPE")
-	printer.Write([]byte{0x1B, 0x21, 0x00})
-	fmt.Fprintf(printer, "- Pedido: %d -\n", idPedido)
-	fmt.Fprintln(printer, time.Now().Format("02/01/06 15:04:05"))
-	fmt.Fprintln(printer, "----------------------------")
-	fmt.Fprintf(printer, "Cliente: %s\n", cliente)
-	fmt.Fprintln(printer, "----------------------------")
-	printer.Write([]byte{0x1B, 0x61, 0x00})
+func ImprimirTicket(idPedido int, cliente string, items []ItemTicket) error {
+	conn, err := net.DialTimeout(modoConexion, direccion, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("no se pudo conectar a la impresora: %v", err)
+	}
+	defer conn.Close()
+
+	conn.Write([]byte{0x1B, 0x40})       // reset
+	conn.Write([]byte{0x1B, 0x61, 0x01}) // centrar
+	conn.Write([]byte{0x1B, 0x21, 0x30}) // texto grande
+	fmt.Fprintln(conn, "TOCKE SAN FELIPE")
+	conn.Write([]byte{0x1B, 0x21, 0x00}) // texto normal
+	fmt.Fprintf(conn, "- Pedido: %d -\n", idPedido)
+	fmt.Fprintln(conn, time.Now().Format("02/01/06 15:04:05"))
+	fmt.Fprintln(conn, "----------------------------")
+	fmt.Fprintf(conn, "Cliente: %s\n", cliente)
+	fmt.Fprintln(conn, "----------------------------")
+	conn.Write([]byte{0x1B, 0x61, 0x00}) // alinear izquierda
 
 	for _, item := range items {
-		fmt.Fprintf(printer, "%d   %s\n", item.Cantidad, item.Nombre)
+		fmt.Fprintf(conn, "%dx  %s\n", item.Cantidad, item.Nombre)
 		for _, mod := range item.Modificadores {
-			fmt.Fprintf(printer, "    - %s\n", mod)
+			fmt.Fprintf(conn, "    - %s\n", mod)
 		}
-		fmt.Fprintln(printer, "----------------------------")
+		fmt.Fprintln(conn, "----------------------------")
 	}
 
-	fmt.Fprintln(printer, "\n\n\n")
-	printer.Write([]byte{0x1D, 0x56, 0x41, 0x00})
+	fmt.Fprintln(conn, "\n\n\n")
+	conn.Write([]byte{0x1D, 0x56, 0x41, 0x00}) // cortar papel
 
 	return nil
 }
