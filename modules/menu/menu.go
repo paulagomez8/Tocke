@@ -1,6 +1,7 @@
 package menu
 
 import (
+	"database/sql"
 	"encoding/json"
 	"html/template"
 	"log"
@@ -124,6 +125,18 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	pedidoJSON := string(args.Peek("pedido_json"))
 	notasGenerales := string(args.Peek("notas"))
 
+	var turnoID int
+	err := bases.DB.QueryRow("SELECT id_turno FROM turnos WHERE fin IS NULL LIMIT 1").Scan(&turnoID)
+	if err == sql.ErrNoRows {
+		log.Println("No hay turno activo")
+		ctx.Error("No hay turno activo, no se puede registrar el pedido", 500)
+		return
+	} else if err != nil {
+		log.Println("Error al obtener turno:", err)
+		ctx.Error("Error interno", 500)
+		return
+	}
+
 	type Mod struct {
 		ID     string `json:"id"`
 		Nombre string `json:"nombre"`
@@ -149,8 +162,8 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	}
 
 	result, err := bases.DB.Exec(
-		"INSERT INTO pedidos_online (fecha, cliente, total, estado, tipo_pedido, notas, pedido_json) VALUES (NOW(), ?, 0, 'pendiente', ?, ?, ?)",
-		cliente, tipoPedido, notasGenerales, pedidoJSON,
+		"INSERT INTO pedidos_online (fecha, cliente, total, estado, tipo_pedido, notas, pedido_json, turno_id) VALUES (NOW(), ?, 0, 'pendiente', ?, ?, ?, ?)",
+		cliente, tipoPedido, notasGenerales, pedidoJSON, turnoID,
 	)
 	if err != nil {
 		log.Println("Error al crear pedido online:", err)
