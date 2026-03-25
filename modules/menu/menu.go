@@ -125,18 +125,6 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	pedidoJSON := string(args.Peek("pedido_json"))
 	notasGenerales := string(args.Peek("notas"))
 
-	var turnoID int
-	err := bases.DB.QueryRow("SELECT id_turno FROM turnos WHERE fin IS NULL LIMIT 1").Scan(&turnoID)
-	if err == sql.ErrNoRows {
-		log.Println("No hay turno activo")
-		ctx.Error("No hay turno activo, no se puede registrar el pedido", 500)
-		return
-	} else if err != nil {
-		log.Println("Error al obtener turno:", err)
-		ctx.Error("Error interno", 500)
-		return
-	}
-
 	type Mod struct {
 		ID     string `json:"id"`
 		Nombre string `json:"nombre"`
@@ -154,6 +142,7 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 		Mods     []Mod
 	}
 
+	// Parsear el pedido JSON
 	var itemsJSON []ItemJSON
 	if err := json.Unmarshal([]byte(pedidoJSON), &itemsJSON); err != nil {
 		log.Println("Error al parsear pedido online:", err)
@@ -161,8 +150,22 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// Obtener el turno activo
+	var turnoID int
+	err := bases.DB.QueryRow("SELECT id_turno FROM turnos WHERE fin IS NULL LIMIT 1").Scan(&turnoID)
+	if err == sql.ErrNoRows {
+		log.Println("No hay turno activo")
+		ctx.Error("No hay turno activo, no se puede registrar el pedido", 500)
+		return
+	} else if err != nil {
+		log.Println("Error al obtener turno:", err)
+		ctx.Error("Error interno", 500)
+		return
+	}
+
+	// Insertar el pedido principal sin columna 'fecha'
 	result, err := bases.DB.Exec(
-		"INSERT INTO pedidos_online (fecha, cliente, total, estado, tipo_pedido, notas, pedido_json, turno_id) VALUES (NOW(), ?, 0, 'pendiente', ?, ?, ?, ?)",
+		"INSERT INTO pedidos_online (cliente, total, estado, tipo_pedido, notas, pedido_json, turno_id) VALUES (?, 0, 'pendiente', ?, ?, ?, ?)",
 		cliente, tipoPedido, notasGenerales, pedidoJSON, turnoID,
 	)
 	if err != nil {
@@ -175,6 +178,7 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	total := 0
 	agrupados := []ItemAgrupado{}
 
+	// Agrupar productos idénticos con los mismos modificadores
 	for _, item := range itemsJSON {
 		modsKey := ""
 		for _, m := range item.Mods {
@@ -201,11 +205,11 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	// Insertar detalles y modificadores
 	for _, item := range agrupados {
 		var precio int
 		bases.DB.QueryRow("SELECT precio FROM productos WHERE id_pro = ?", item.IDPro).Scan(&precio)
 
-		// Extraer la nota manual (ID 0) para este item
 		notaManual := ""
 		for _, m := range item.Mods {
 			if m.ID == "0" {
@@ -213,25 +217,37 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 			}
 		}
 
-		// INSERTAR con la nueva columna notas_producto
-		bases.DB.Exec(
+		_, err := bases.DB.Exec(
 			"INSERT INTO pedidos_online_detalle (id_online, id_pro, cantidad, precio, notas_producto) VALUES (?, ?, ?, ?, ?)",
 			idOnline, item.IDPro, item.Cantidad, precio*item.Cantidad, notaManual,
 		)
+		if err != nil {
+			log.Println("Error al insertar detalle:", err)
+		}
+
 		total += precio * item.Cantidad
 
 		for _, mod := range item.Mods {
 			if mod.ID != "0" {
 				idMod, _ := strconv.Atoi(mod.ID)
-				bases.DB.Exec(
+				_, err := bases.DB.Exec(
 					"INSERT INTO pedidos_online_modificadores (id_online, id_pro, id_mod) VALUES (?, ?, ?)",
 					idOnline, item.IDPro, idMod,
 				)
+				if err != nil {
+					log.Println("Error al insertar modificador:", err)
+				}
 			}
 		}
 	}
 
-	bases.DB.Exec("UPDATE pedidos_online SET total = ? WHERE id_online = ?", total, idOnline)
+	// Actualizar total
+	_, err = bases.DB.Exec("UPDATE pedidos_online SET total = ? WHERE id_online = ?", total, idOnline)
+	if err != nil {
+		log.Println("Error al actualizar total:", err)
+	}
+
+	// Redirigir a página de confirmación
 	ctx.Redirect("/menu/confirmado/"+strconv.FormatInt(idOnline, 10), 302)
 }
 
