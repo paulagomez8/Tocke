@@ -18,9 +18,10 @@ type VentaDia struct {
 }
 
 type VentaMes struct {
-	Mes     string
-	Total   int
-	Pedidos int
+	Mes       string
+	MesNombre string
+	Total     int
+	Pedidos   int
 }
 
 type ProductoVendido struct {
@@ -38,53 +39,69 @@ type ReporteData struct {
 func VerReportes(ctx *fasthttp.RequestCtx) {
 	var data ReporteData
 
-	// Ventas por dia (ultimos 30 dias)
-	rowsDia, err := bases.DB.Query(`
-    SELECT DATE_FORMAT(fecha, '%d-%m-%Y') as dia, SUM(total), COUNT(*)
-    FROM pedidos
-    WHERE fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY DATE(fecha)
-    ORDER BY DATE(fecha) DESC
-    `)
-	if err != nil {
-		log.Println("Error ventas dia:", err)
-	} else {
-		defer rowsDia.Close()
-		for rowsDia.Next() {
-			var v VentaDia
-			rowsDia.Scan(&v.Fecha, &v.Total, &v.Pedidos)
-			data.VentasDia = append(data.VentasDia, v)
-		}
-	}
-
-	// Ventas por mes (ultimos 12 meses)
+	// Ventas por mes (todos los meses, colapsables)
 	rowsMes, err := bases.DB.Query(`
-        SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, SUM(total), COUNT(*)
-        FROM pedidos
-        GROUP BY mes
-        ORDER BY mes DESC
-        LIMIT 12
-    `)
+		SELECT DATE_FORMAT(fecha, '%Y-%m') as mes, 
+		       CASE MONTH(fecha)
+    WHEN 1 THEN 'Enero'
+    WHEN 2 THEN 'Febrero'
+    WHEN 3 THEN 'Marzo'
+    WHEN 4 THEN 'Abril'
+    WHEN 5 THEN 'Mayo'
+    WHEN 6 THEN 'Junio'
+    WHEN 7 THEN 'Julio'
+    WHEN 8 THEN 'Agosto'
+    WHEN 9 THEN 'Septiembre'
+    WHEN 10 THEN 'Octubre'
+    WHEN 11 THEN 'Noviembre'
+    WHEN 12 THEN 'Diciembre'
+END as mes_nombre,
+		       SUM(total), COUNT(*)
+		FROM pedidos
+		GROUP BY mes
+		ORDER BY mes DESC
+	`)
 	if err != nil {
 		log.Println("Error ventas mes:", err)
 	} else {
 		defer rowsMes.Close()
 		for rowsMes.Next() {
 			var v VentaMes
-			rowsMes.Scan(&v.Mes, &v.Total, &v.Pedidos)
+			rowsMes.Scan(&v.Mes, &v.MesNombre, &v.Total, &v.Pedidos)
 			data.VentasMes = append(data.VentasMes, v)
 		}
 	}
 
-	// Productos mas vendidos
+	// Ventas por dia del mes actual
+	rowsDia, err := bases.DB.Query(`
+		SELECT DATE_FORMAT(fecha, '%d-%m-%Y') as dia, COUNT(*), SUM(total)
+		FROM pedidos
+		WHERE DATE_FORMAT(fecha, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+		GROUP BY DATE(fecha)
+		ORDER BY DATE(fecha) DESC
+	`)
+	if err != nil {
+		log.Println("Error ventas dia:", err)
+	} else {
+		defer rowsDia.Close()
+		for rowsDia.Next() {
+			var v VentaDia
+			rowsDia.Scan(&v.Fecha, &v.Pedidos, &v.Total)
+			data.VentasDia = append(data.VentasDia, v)
+		}
+	}
+
+	// Productos mas vendidos del mes actual
 	rowsPro, err := bases.DB.Query(`
-        SELECT p.nombre, SUM(pd.cantidad) as cantidad, SUM(pd.cantidad * pd.precio) as total
-        FROM pedidos_detalle pd
-        JOIN productos p ON pd.id_pro = p.id_pro
-        GROUP BY p.id_pro, p.nombre
-        ORDER BY cantidad DESC
-        LIMIT 10
-    `)
+		SELECT p.nombre, SUM(pd.cantidad) as cantidad, SUM(pd.cantidad * pd.precio) as total
+		FROM pedidos_detalle pd
+		JOIN productos p ON pd.id_pro = p.id_pro
+		JOIN pedidos pe ON pd.id_ped = pe.id_ped
+		WHERE DATE_FORMAT(pe.fecha, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+		GROUP BY p.id_pro, p.nombre
+		ORDER BY cantidad DESC
+		LIMIT 10
+	`)
 	if err != nil {
 		log.Println("Error productos top:", err)
 	} else {

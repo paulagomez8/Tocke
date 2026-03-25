@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle Pedido Online</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+        h1 { color: #333; font-size: 20px; }
+        .info { background: #fef9f0; border: 1px solid #e67e22; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .item { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 15px; }
+        .mods { font-size: 12px; color: #666; padding-left: 10px; }
+        .total { font-size: 18px; font-weight: bold; color: #27ae60; text-align: right; margin-top: 10px; }
+        .btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; color: white; }
+        .btn-print { background: #2980b9; }
+        .btn-listo { background: #27ae60; }
+        .btn-volver { background: #95a5a6; text-decoration: none; text-align: center; }
+        /* Estilo para las notas */
+        .notas-caja { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e67e22; color: #d35400; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>Pedido Online #{{.ID}}</h1>
+    <div class="info">
+        <strong>{{.Cliente}}</strong> — {{.Fecha}}<br>
+        <span style="font-size:13px; color:#e67e22;">{{.TipoPedido}}</span>
+        
+        {{if .Notas}}
+        <div class="notas-caja">
+            <strong>⚠️ NOTAS:</strong> {{.Notas}}
+        </div>
+        {{end}}
+    </div>
+
+    {{range .Items}}
+    <div class="item">
+        <strong>{{.Cantidad}}x {{.Nombre}}</strong> — ${{.Precio}}
+        {{range .Modificadores}}
+        <div class="mods">- {{.}}</div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <div class="total">Total: ${{.Total}}</div>
+
+    <div class="btns">
+        <a class="btn btn-volver" href="/inicio">← Volver</a>
+        <form method="POST" action="/online/imprimir/{{.ID}}" style="flex:1">
+            <button type="submit" class="btn btn-print" style="width:100%">🖨️ Imprimir</button>
+        </form>
+        <form method="POST" action="/online/listo/{{.ID}}" style="flex:1">
+            <button type="submit" class="btn btn-listo" style="width:100%">✅ Listo</button>
+        </form>
+    </div>
+</body>
+</html>

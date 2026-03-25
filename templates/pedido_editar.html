@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Nuevo Pedido</title>
+    <title>Agregar al Pedido</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         h1 { color: #333; font-size: 24px; }
@@ -18,7 +18,6 @@
         .btn-cant { width: 28px; height: 28px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
         .btn-cant:hover { background: #f4f4f4; }
         .cant-num { width: 30px; text-align: center; font-size: 15px; font-weight: bold; }
-        .btn-agregar:hover { background-color: #219150; }
         .pedido-actual { width: 400px; margin-top: 20px; border: 1px solid #ddd; border-radius: 5px; overflow: hidden; }
         .pedido-actual h2 { background: #f4f4f4; margin: 0; padding: 10px 14px; font-size: 16px; }
         .pedido-item { padding: 8px 12px; border-top: 1px solid #ddd; font-size: 14px; }
@@ -32,11 +31,23 @@
         .btn:hover { background-color: #219150; }
         .back { color: #333; text-decoration: none; margin-bottom: 15px; font-size: 15px; align-self: flex-start; padding-left: calc(50% - 200px); }
         .vacio { padding: 10px 14px; font-size: 13px; color: #999; }
+        .existente { background: #f0f0f0; color: #666; font-style: italic; }
     </style>
 </head>
 <body>
     <a class="back" href="/inicio">← Volver</a>
-    <h1>Nuevo Pedido</h1>
+    <h1>Agregar al Pedido #{{.IDPedido}}</h1>
+    <p style="color:#666; font-size:14px;">Cliente: <strong>{{.Cliente}}</strong></p>
+
+    <!-- Items ya en el pedido -->
+    <div class="pedido-actual" style="margin-bottom:10px;">
+        <h2 style="background:#e8f4fd;">📋 Ya en el pedido</h2>
+        {{range .Items}}
+        <div class="pedido-item existente">
+            <strong>{{.Cantidad}}x {{.Nombre}}</strong>
+        </div>
+        {{end}}
+    </div>
 
     <!-- Categorias y productos -->
     <div class="contenido">
@@ -48,7 +59,7 @@
             </div>
             <div class="categoria-body">
                 {{range .Productos}}
-               <div class="producto-row" id="prod-{{.ID}}">
+                <div class="producto-row" id="prod-{{.ID}}">
                     <span>{{.Nombre}}</span>
                     <div class="cantidad-control">
                         <button class="btn-cant" onclick="cambiarCant({{.ID}}, -1)">−</button>
@@ -64,8 +75,8 @@
                         <input type="checkbox" class="mod-check-{{.ID}}" data-mod-id="{{.ID}}" data-mod-nombre="{{.Nombre}}"> {{.Nombre}}
                     </label>
                     {{end}}
-                   <br>
-                    <input type="text" id="nota-{{.ID}}" placeholder="Nota especial..." 
+                    <br>
+                    <input type="text" id="nota-{{.ID}}" placeholder="Nota especial..."
                         style="width:100%; padding:6px; margin-top:8px; border:1px solid #ddd; border-radius:4px; font-size:13px; box-sizing:border-box;">
                     <br>
                     <button class="btn-confirmar-item" onclick="confirmarItem({{.ID}})">Confirmar</button>
@@ -77,38 +88,16 @@
         {{end}}
     </div>
 
-    <!-- Pedido actual -->
+    <!-- Nuevos items -->
     <div class="pedido-actual">
-        <h2>Pedido</h2>
-        <div id="lista-pedido"><div class="vacio">Sin productos aún</div></div>
+        <h2>Agregar</h2>
+        <div id="lista-pedido"><div class="vacio">Sin productos nuevos</div></div>
     </div>
 
-    <!-- Formulario oculto -->
-  <!-- Formulario oculto -->
-    <form method="POST" action="/confirmar-pedido" id="formPedido">
-    <input type="hidden" name="pedido_json" id="pedido_json">
-    <input type="hidden" name="id_mesa" id="id_mesa">
-    <input type="text" name="cliente" id="cliente" placeholder="Nombre del cliente" required
-        style="width: 400px; padding: 10px; margin-top: 15px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
-    <select name="tipo_pedido" id="tipo_pedido" required onchange="mostrarMesas(this.value)"
-        style="width: 400px; padding: 10px; margin-top: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
-        <option value="">-- Tipo de pedido --</option>
-        <option value="Servir">Servir</option>
-        <option value="Ir comiendo">Ir Comiendo</option>
-        <option value="Llevar">Llevar</option>
-        <option value="Retiro">Retiro</option>
-        <option value="Delivery">Delivery</option>
-    </select>
-    <select id="selector_mesa" style="display:none; width: 400px; padding: 10px; margin-top: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
-        <option value="">-- Seleccionar mesa --</option>
-        {{range .Mesas}}
-        <option value="{{.ID}}" {{if .Ocupada}}disabled style="color:#999"{{end}}>
-            {{.Nombre}} {{if .Ocupada}}(Ocupada){{else}}(Libre){{end}}
-        </option>
-        {{end}}
-    </select>
-    <button class="btn" type="submit">Confirmar Pedido</button>
-</form>
+    <form method="POST" action="/pedidos/agregar/{{.IDPedido}}" id="formPedido">
+        <input type="hidden" name="pedido_json" id="pedido_json">
+        <button class="btn" type="submit">Imprimir y Agregar</button>
+    </form>
 
     <script>
         let pedido = [];
@@ -134,7 +123,6 @@
                 p.classList.remove('activo');
                 p.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
             });
-
             const popup = document.getElementById('mods-' + idPro);
             if (popup) {
                 itemActual = { idPro, nombre, cant };
@@ -145,20 +133,6 @@
             }
         }
 
-function mostrarMesas(tipo) {
-    const selector = document.getElementById('selector_mesa');
-    if (tipo === 'Servir') {
-        selector.style.display = 'block';
-        selector.required = true;
-    } else {
-        selector.style.display = 'none';
-        selector.required = false;
-        selector.value = '';
-        document.getElementById('id_mesa').value = '';
-    }
-}
-
-
         function confirmarItem(idPro) {
             const popup = document.getElementById('mods-' + idPro);
             const mods = [];
@@ -166,9 +140,7 @@ function mostrarMesas(tipo) {
                 mods.push({ id: c.dataset.modId, nombre: c.dataset.modNombre });
             });
             const nota = document.getElementById('nota-' + idPro).value.trim();
-            if (nota) {
-                mods.push({ id: '0', nombre: nota });
-            }
+            if (nota) mods.push({ id: '0', nombre: nota });
             agregarAlPedido(idPro, itemActual.nombre, mods, itemActual.cant);
             popup.classList.remove('activo');
             popup.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
@@ -178,10 +150,9 @@ function mostrarMesas(tipo) {
         }
 
         function agregarAlPedido(idPro, nombre, mods, cant) {
-            // Buscar si ya existe el mismo producto con los mismos modificadores
             const modsKey = mods.map(m => m.id).sort().join(',');
-            const existente = pedido.find(i => 
-                i.idPro === idPro && 
+            const existente = pedido.find(i =>
+                i.idPro === idPro &&
                 i.mods.map(m => m.id).sort().join(',') === modsKey
             );
             if (existente) {
@@ -200,7 +171,7 @@ function mostrarMesas(tipo) {
         function renderPedido() {
             const lista = document.getElementById('lista-pedido');
             if (pedido.length === 0) {
-                lista.innerHTML = '<div class="vacio">Sin productos aún</div>';
+                lista.innerHTML = '<div class="vacio">Sin productos nuevos</div>';
                 return;
             }
             lista.innerHTML = pedido.map(item => `
@@ -213,27 +184,19 @@ function mostrarMesas(tipo) {
         }
 
         document.getElementById('formPedido').addEventListener('submit', function(e) {
-    if (pedido.length === 0) {
-        e.preventDefault();
-        alert('Agrega al menos un producto al pedido');
-        return;
-    }
-    const tipo = document.getElementById('tipo_pedido').value;
-    const mesa = document.getElementById('selector_mesa').value;
-    if (tipo === 'Servir' && !mesa) {
-        e.preventDefault();
-        alert('Selecciona una mesa o barra');
-        return;
-    }
-    document.getElementById('id_mesa').value = mesa;
-    let itemsExpandidos = [];
-    pedido.forEach(item => {
-        for (let i = 0; i < item.cant; i++) {
-            itemsExpandidos.push({ idPro: item.idPro, nombre: item.nombre, mods: item.mods });
-        }
-    });
-    document.getElementById('pedido_json').value = JSON.stringify(itemsExpandidos);
-});
+            if (pedido.length === 0) {
+                e.preventDefault();
+                alert('Agrega al menos un producto nuevo');
+                return;
+            }
+            let itemsExpandidos = [];
+            pedido.forEach(item => {
+                for (let i = 0; i < item.cant; i++) {
+                    itemsExpandidos.push({ idPro: item.idPro, nombre: item.nombre, mods: item.mods });
+                }
+            });
+            document.getElementById('pedido_json').value = JSON.stringify(itemsExpandidos);
+        });
     </script>
 </body>
 </html>

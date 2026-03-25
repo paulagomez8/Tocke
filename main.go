@@ -6,6 +6,7 @@ import (
 	"tockesanfelipe/modules/auth"
 	"tockesanfelipe/modules/bases"
 	"tockesanfelipe/modules/inventario"
+	"tockesanfelipe/modules/menu"
 	"tockesanfelipe/modules/pedidos"
 	"tockesanfelipe/modules/reportes"
 
@@ -16,6 +17,8 @@ import (
 func proteger(siguiente fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 		if !auth.VerificarSesion(ctx) {
+			// Guardamos la URL actual para volver después del login
+			ctx.SetUserValue("redirect_after_login", string(ctx.Request.URI().Path()))
 			ctx.Redirect("/login", 302)
 			return
 		}
@@ -30,7 +33,6 @@ func main() {
 	r.GET("/login", auth.Login)
 	r.POST("/login", auth.Login)
 
-	r.GET("/", proteger(pedidos.Inicio))
 	r.GET("/nuevo-pedido", proteger(pedidos.NuevoPedido))
 	r.POST("/confirmar-pedido", proteger(pedidos.ConfirmarPedido))
 
@@ -56,6 +58,22 @@ func main() {
 	r.POST("/mesa/liberar/{id}", proteger(pedidos.LiberarMesa))
 	r.POST("/turno/abrir", proteger(reportes.AbrirTurno))
 	r.POST("/turno/cerrar/{id}", proteger(reportes.CerrarTurno))
+	r.GET("/menu", menu.VerMenu)
+	r.POST("/menu/confirmar", menu.ConfirmarPedidoOnline)
+	r.GET("/menu/confirmado/{id}", menu.PedidoConfirmado)
+	r.POST("/online/listo/{id}", proteger(pedidos.MarcarListo))
+	r.GET("/online/detalle/{id}", proteger(pedidos.DetalleOnline))
+	r.POST("/online/imprimir/{id}", proteger(pedidos.ImprimirOnline))
+	r.POST("/pedidos/cerrar/{id}", proteger(pedidos.CerrarPedido))
+	r.GET("/pedidos/editar/{id}", proteger(pedidos.EditarPedido))
+	r.POST("/pedidos/agregar/{id}", proteger(pedidos.AgregarAPedido))
+	r.GET("/logout", auth.Logout)
+	r.GET("/", pedidos.Landing)
+	r.GET("/inicio", proteger(pedidos.Inicio))
+	r.POST("/pedidos/abrir", proteger(pedidos.AbrirPedidos))
+	r.POST("/pedidos/cerrar", proteger(pedidos.CerrarPedidos))
+
+	r.ServeFiles("/static/{filepath:*}", "static")
 
 	log.Println("Servidor corriendo en http://localhost:8080")
 	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))

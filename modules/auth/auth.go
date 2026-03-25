@@ -24,7 +24,24 @@ func VerificarSesion(ctx *fasthttp.RequestCtx) bool {
 }
 
 func Login(ctx *fasthttp.RequestCtx) {
+	// 1. Capturar el destino deseado desde la URL (query string)
+	dest := string(ctx.QueryArgs().Peek("redirect"))
+	if dest == "" {
+		dest = "/inicio" // Por defecto si no hay ruta previa
+	}
+
+	if VerificarSesion(ctx) {
+		ctx.Redirect(dest, 302)
+		return
+	}
+
 	if string(ctx.Method()) == "GET" {
+		// Modificamos el action del form para no perder el parámetro redirect
+		formAction := "/login"
+		if dest != "/inicio" {
+			formAction = "/login?redirect=" + dest
+		}
+
 		tmpl := `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -37,13 +54,12 @@ func Login(ctx *fasthttp.RequestCtx) {
         input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 15px; box-sizing: border-box; }
         .btn { width: 100%; padding: 10px; background-color: #27ae60; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
         .btn:hover { background-color: #219150; }
-        .error { color: red; text-align: center; margin-bottom: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="box">
         <h2>Tocke San Felipe</h2>
-        <form method="POST" action="/login" autocomplete="off">
+        <form method="POST" action="` + formAction + `" autocomplete="off">
             <input type="text" name="usuario" placeholder="Usuario" required>
             <input type="password" name="password" placeholder="Contraseña" required>
             <button class="btn" type="submit">Entrar</button>
@@ -80,7 +96,8 @@ func Login(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetCookie(cookie)
 	fasthttp.ReleaseCookie(cookie)
 
-	ctx.Redirect("/", 302)
+	// 2. Redirigir al destino dinámico capturado al inicio
+	ctx.Redirect(dest, 302)
 }
 
 func mostrarErrorLogin(ctx *fasthttp.RequestCtx) {
@@ -111,4 +128,29 @@ func mostrarErrorLogin(ctx *fasthttp.RequestCtx) {
     </div>
 </body>
 </html>`)
+}
+
+// Middleware que protege rutas: si no hay sesión válida → redirige al login
+func RequiereLogin(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		if !VerificarSesion(ctx) {
+			// Guardamos la URL a la que quería ir para volver después del login
+			ctx.Redirect("/login?redirect="+string(ctx.URI().Path()), 302)
+			return
+		}
+		// Si está logueado, sigue a la página normal
+		next(ctx)
+	}
+}
+
+func Logout(ctx *fasthttp.RequestCtx) {
+	cookie := fasthttp.AcquireCookie()
+	cookie.SetKey("sesion")
+	cookie.SetValue("")
+	cookie.SetPath("/")
+	cookie.SetExpire(fasthttp.CookieExpireDelete) // Esto borra la cookie
+	ctx.Response.Header.SetCookie(cookie)
+	fasthttp.ReleaseCookie(cookie)
+
+	ctx.Redirect("/login", 302)
 }

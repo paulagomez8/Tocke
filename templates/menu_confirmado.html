@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Pedido Confirmado - Tocke San Felipe</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f9f9f9; }
+        .box { background: white; border-radius: 10px; padding: 30px; max-width: 400px; margin: 0 auto; border: 1px solid #ddd; }
+        .numero { font-size: 60px; font-weight: bold; color: #27ae60; margin: 10px 0; }
+        h1 { color: #333; }
+        p { color: #666; font-size: 15px; }
+        .btn { margin-top: 20px; display: inline-block; padding: 10px 25px; background-color: #27ae60; color: white; border-radius: 5px; text-decoration: none; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>✅ Pedido confirmado!</h1>
+        <p>Tu número de pedido es:</p>
+        <div class="numero">#{{.IDOnline}}</div>
+        <p>Hola <strong>{{.Cliente}}</strong>, tu pedido está siendo preparado.</p>
+        <p>Acércate al local con este número para retirarlo.</p>
+        <p style="font-size:13px; color:#999;">{{.Fecha}}</p>
+        <a class="btn" href="/">Volver a la página principal</a>
+    </div>
+</body>
+</html>

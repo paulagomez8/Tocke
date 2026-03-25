@@ -112,8 +112,13 @@ func EliminarProducto(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	bases.DB.Exec("DELETE FROM pedidos_modificadores WHERE id_pro=?", id)
 	bases.DB.Exec("DELETE FROM pedidos_detalle WHERE id_pro=?", id)
+	bases.DB.Exec("DELETE FROM pedidos_online_detalle WHERE id_pro=?", id)
 	bases.DB.Exec("DELETE FROM modificadores WHERE id_pro=?", id)
-	bases.DB.Exec("DELETE FROM productos WHERE id_pro=?", id)
+	bases.DB.Exec("DELETE FROM recetas WHERE id_pro=?", id)
+	_, err := bases.DB.Exec("DELETE FROM productos WHERE id_pro=?", id)
+	if err != nil {
+		log.Println("Error al eliminar producto:", err)
+	}
 	ctx.Redirect("/admin", 302)
 }
 
@@ -126,13 +131,27 @@ func AgregarCategoria(ctx *fasthttp.RequestCtx) {
 
 func EliminarCategoria(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
-	bases.DB.Exec("DELETE FROM pedidos_modificadores WHERE id_pro IN (SELECT id_pro FROM productos WHERE id_cat=?)", id)
-	bases.DB.Exec("DELETE FROM pedidos_detalle WHERE id_pro IN (SELECT id_pro FROM productos WHERE id_cat=?)", id)
-	bases.DB.Exec("DELETE FROM modificadores WHERE id_pro IN (SELECT id_pro FROM productos WHERE id_cat=?)", id)
+
+	// Primero obtenemos los ids de productos de esa categoría
+	rows, err := bases.DB.Query("SELECT id_pro FROM productos WHERE id_cat=?", id)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var idPro int
+			rows.Scan(&idPro)
+			bases.DB.Exec("DELETE FROM pedidos_modificadores WHERE id_pro=?", idPro)
+			bases.DB.Exec("DELETE FROM pedidos_detalle WHERE id_pro=?", idPro)
+			bases.DB.Exec("DELETE FROM pedidos_online_detalle WHERE id_pro=?", idPro)
+			bases.DB.Exec("DELETE FROM modificadores WHERE id_pro=?", idPro)
+			bases.DB.Exec("DELETE FROM recetas WHERE id_pro=?", idPro)
+		}
+	}
+
 	bases.DB.Exec("DELETE FROM productos WHERE id_cat=?", id)
 	bases.DB.Exec("DELETE FROM categorias WHERE id_cat=?", id)
 	ctx.Redirect("/admin", 302)
 }
+
 func EditarCategoria(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	nombre := string(ctx.FormValue("nombre"))

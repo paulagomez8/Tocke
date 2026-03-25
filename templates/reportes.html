@@ -7,36 +7,62 @@
         body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
         h1 { color: #333; }
         h2 { color: #555; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; }
         th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
         th { background-color: #f4f4f4; font-weight: bold; }
         tr:hover { background-color: #fafafa; }
         .back { color: #333; text-decoration: none; display: inline-block; margin-bottom: 20px; }
         .vacio { color: #999; font-size: 14px; padding: 10px 0; }
         .total { font-weight: bold; color: #27ae60; }
+        .mes-header {
+            background: #f4f4f4;
+            padding: 12px 15px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .mes-header:hover { background: #e8e8e8; }
+        .mes-body { display: none; margin-bottom: 15px; }
+        .mes-body.abierto { display: block; }
+        .mes-total { color: #27ae60; font-weight: bold; }
+        .mes-item { margin-bottom: 8px; }
     </style>
 </head>
 <body>
-    <a class="back" href="/">← Volver al inicio</a>
+    <a class="back" href="/inicio">← Volver al inicio</a>
     <h1>Reportes</h1>
-<a href="/reportes/exportar" style="display: inline-block; margin-bottom: 20px; padding: 10px 20px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px; font-size: 14px;">📥 Exportar a Excel</a>
+    <a href="/reportes/exportar" style="display: inline-block; margin-bottom: 20px; padding: 10px 20px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px; font-size: 14px;">📥 Exportar a Excel</a>
+
     <h2>Ventas por Mes</h2>
     {{if .VentasMes}}
-    <table>
-        <tr><th>Mes</th><th>Pedidos</th><th>Total</th></tr>
-        {{range .VentasMes}}
-        <tr>
-            <td>{{.Mes}}</td>
-            <td>{{.Pedidos}}</td>
-            <td class="total">${{.Total}}</td>
-        </tr>
-        {{end}}
-    </table>
+    {{range .VentasMes}}
+    <div class="mes-item">
+        <div class="mes-header" onclick="toggleMes(this)">
+            <span>📅 {{.MesNombre}}</span>
+            <span class="mes-total">${{.Total}} · {{.Pedidos}} pedidos ▼</span>
+        </div>
+        <div class="mes-body">
+            <table>
+                <tr><th>Total del mes</th><th>Pedidos</th></tr>
+                <tr>
+                    <td class="total">${{.Total}}</td>
+                    <td>{{.Pedidos}}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    {{end}}
     {{else}}
     <p class="vacio">No hay datos aún</p>
     {{end}}
 
-    <h2>Ventas por Día (últimos 30 días)</h2>
+    <h2>Ventas por Día — Mes Actual</h2>
     {{if .VentasDia}}
     <table>
         <tr><th>Fecha</th><th>Pedidos</th><th>Total</th></tr>
@@ -52,7 +78,7 @@
     <p class="vacio">No hay datos aún</p>
     {{end}}
 
-    <h2>Productos Más Vendidos</h2>
+    <h2>Productos Más Vendidos — Mes Actual</h2>
     {{if .ProductosTop}}
     <table>
         <tr><th>Producto</th><th>Cantidad</th><th>Total</th></tr>
@@ -68,5 +94,11 @@
     <p class="vacio">No hay datos aún</p>
     {{end}}
 
+    <script>
+        function toggleMes(header) {
+            const body = header.nextElementSibling;
+            body.classList.toggle('abierto');
+        }
+    </script>
 </body>
 </html>
