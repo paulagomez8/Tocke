@@ -9,6 +9,7 @@ import (
 	"time"
 	"tockesanfelipe/modules/bases"
 
+	"github.com/gorilla/websocket"
 	"github.com/valyala/fasthttp"
 )
 
@@ -118,6 +119,34 @@ h2{color:#cc0000;margin-bottom:15px;}p{color:#666;font-size:16px;}</style>
 	tmpl.Execute(ctx, categorias)
 }
 
+func EnviarSocket(idOnline int64, total float64, fecha time.Time, cliente string, tipoPedido string) {
+
+	wsURL := "ws://localhost:8081/ws"
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		log.Println("Error conectando al WebSocket:", err)
+		return // 👈 no uses Fatal, mata todo el servidor
+	}
+	defer c.Close()
+
+	// Armar JSON con los datos del pedido
+	notif := map[string]interface{}{
+		"tipo":       "nuevo_pedido",
+		"cliente":    cliente,
+		"total":      total,
+		"id":         idOnline,
+		"fecha":      fecha,
+		"tipopedido": tipoPedido,
+	}
+	data, _ := json.Marshal(notif)
+
+	err = c.WriteMessage(websocket.TextMessage, data)
+	if err != nil {
+		log.Println("Error enviando mensaje:", err)
+	}
+}
+
 func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	args := ctx.Request.PostArgs()
 	cliente := string(args.Peek("cliente"))
@@ -217,26 +246,27 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 			}
 		}
 
-		_, err := bases.DB.Exec(
+		// 👇 Capturar el id de la línea insertada
+		res, err := bases.DB.Exec(
 			"INSERT INTO pedidos_online_detalle (id_online, id_pro, cantidad, precio, notas_producto) VALUES (?, ?, ?, ?, ?)",
 			idOnline, item.IDPro, item.Cantidad, precio*item.Cantidad, notaManual,
 		)
 		if err != nil {
 			log.Println("Error al insertar detalle:", err)
+			continue
 		}
+		idDetalle, _ := res.LastInsertId() // 👈 esto es la clave
 
 		total += precio * item.Cantidad
 
 		for _, mod := range item.Mods {
 			if mod.ID != "0" {
 				idMod, _ := strconv.Atoi(mod.ID)
-				_, err := bases.DB.Exec(
-					"INSERT INTO pedidos_online_modificadores (id_online, id_pro, id_mod) VALUES (?, ?, ?)",
-					idOnline, item.IDPro, idMod,
+				bases.DB.Exec(
+					// 👇 Ahora vinculamos el mod a la línea específica
+					"INSERT INTO pedidos_online_modificadores (id_online, id_pro, id_mod, id_detalle) VALUES (?, ?, ?, ?)",
+					idOnline, item.IDPro, idMod, idDetalle,
 				)
-				if err != nil {
-					log.Println("Error al insertar modificador:", err)
-				}
 			}
 		}
 	}
@@ -246,6 +276,7 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		log.Println("Error al actualizar total:", err)
 	}
+	EnviarSocket(idOnline, float64(total), time.Now(), cliente, tipoPedido)
 
 	// Redirigir a página de confirmación
 	ctx.Redirect("/menu/confirmado/"+strconv.FormatInt(idOnline, 10), 302)

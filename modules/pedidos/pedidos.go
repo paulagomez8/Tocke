@@ -429,7 +429,7 @@ func DetalleOnline(ctx *fasthttp.RequestCtx) {
 
 	// 2. Traer productos
 	rows, err := bases.DB.Query(`
-		SELECT pr.nombre, pod.cantidad, pod.precio, pod.id_pro, IFNULL(pod.notas_producto, '')
+    SELECT pr.nombre, pod.cantidad, pod.precio, pod.id_ped, IFNULL(pod.notas_producto, '')
     FROM pedidos_online_detalle pod
     JOIN productos pr ON pod.id_pro = pr.id_pro
     WHERE pod.id_online = ?
@@ -439,30 +439,33 @@ func DetalleOnline(ctx *fasthttp.RequestCtx) {
 		defer rows.Close()
 		for rows.Next() {
 			var item ItemDetalle
-			var idPro int
+			var idDetalle int
 			var notaProd string
-			rows.Scan(&item.Nombre, &item.Cantidad, &item.Precio, &idPro, &notaProd)
+			rows.Scan(&item.Nombre, &item.Cantidad, &item.Precio, &idDetalle, &notaProd)
 
-			// 3. Traer modificadores (Aquí es donde salía el -0)
-			// Usamos LEFT JOIN y IFNULL para que si no hay nombre, no salga nada feo
+			// 👇 Buscar mods por id_detalle, no por id_pro
 			rowsMod, _ := bases.DB.Query(`
-				SELECT m.nombre FROM pedidos_online_modificadores pom
-				JOIN modificadores m ON pom.id_mod = m.id_mod
-				WHERE pom.id_online = ? AND pom.id_pro = ?
-			`, id, idPro)
+            SELECT m.nombre 
+            FROM pedidos_online_modificadores pom
+            JOIN modificadores m ON pom.id_mod = m.id_mod
+            WHERE pom.id_detalle = ?
+        `, idDetalle)
 
 			if rowsMod != nil {
 				for rowsMod.Next() {
 					var mod string
 					if errM := rowsMod.Scan(&mod); errM == nil && mod != "" {
 						item.Modificadores = append(item.Modificadores, mod)
-						if notaProd != "" {
-							item.Modificadores = append(item.Modificadores, notaProd)
-						}
 					}
 				}
 				rowsMod.Close()
 			}
+
+			// Nota manual una sola vez al final
+			if notaProd != "" {
+				item.Modificadores = append(item.Modificadores, notaProd)
+			}
+
 			data.Items = append(data.Items, item)
 		}
 	}
@@ -482,7 +485,7 @@ func ImprimirOnline(ctx *fasthttp.RequestCtx) {
 	bases.DB.QueryRow("SELECT cliente FROM pedidos_online WHERE id_online = ?", id).Scan(&cliente)
 
 	rows, err := bases.DB.Query(`
-        SELECT pr.nombre, pod.cantidad
+        SELECT pr.nombre, pod.cantidad, pod.id_ped, IFNULL(pod.notas_producto, '')
         FROM pedidos_online_detalle pod
         JOIN productos pr ON pod.id_pro = pr.id_pro
         WHERE pod.id_online = ?
@@ -492,12 +495,35 @@ func ImprimirOnline(ctx *fasthttp.RequestCtx) {
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
-			var nombre string
-			var cantidad int
-			rows.Scan(&nombre, &cantidad)
+			var nombre, notaProd string
+			var cantidad, idDetalle int
+			rows.Scan(&nombre, &cantidad, &idDetalle, &notaProd)
+
+			// Traer modificadores por id_detalle
+			var mods []string
+			rowsMod, _ := bases.DB.Query(`
+                SELECT m.nombre
+                FROM pedidos_online_modificadores pom
+                JOIN modificadores m ON pom.id_mod = m.id_mod
+                WHERE pom.id_detalle = ?
+            `, idDetalle)
+			if rowsMod != nil {
+				for rowsMod.Next() {
+					var mod string
+					if errM := rowsMod.Scan(&mod); errM == nil && mod != "" {
+						mods = append(mods, mod)
+					}
+				}
+				rowsMod.Close()
+			}
+			if notaProd != "" {
+				mods = append(mods, notaProd)
+			}
+
 			items = append(items, impresora.ItemTicket{
-				Cantidad: cantidad,
-				Nombre:   nombre,
+				Cantidad:      cantidad,
+				Nombre:        nombre,
+				Modificadores: mods,
 			})
 		}
 	}

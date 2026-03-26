@@ -2,10 +2,35 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    
-    
-<meta http-equiv="refresh" content="5">
     <title>Tocke San Felipe</title>
+    <script>
+        const ws = new WebSocket("ws://localhost:8081/ws");
+
+ws.onopen = () => {
+    console.log("Conectado al WebSocket");
+   };
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.tipo === "nuevo_pedido") {
+    console.log(`🛒 Nuevo pedido de ${data.cliente} — $${data.total}`);
+    MostrarNuevoPedido(data);
+  }
+};
+function MostrarNuevoPedido(data) {
+    const div = document.getElementById("pedidos_pendientes");
+    div.innerHTML = `<a href="/online/detalle/`+data.id+`" style="text-decoration:none;">
+    <div style="background: #fef9f0; border: 1px solid #e67e22; border-radius: 8px; padding: 10px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor:pointer;">
+        <div>
+            <strong>#`+data.id+` — `+data.cliente+`</strong>
+            <div style="font-size: 13px; color: #666;">`+data.fecha+` — $`+data.total+` — `+data.tipopedido+`</div>
+        </div>
+        <span style="color:#e67e22; font-size:20px;">→</span>
+    </div>
+    </a>` + div.innerHTML;
+}
+    </script>
     <style>
         body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
         h1 { color: #333; margin-bottom: 40px; }
@@ -93,6 +118,7 @@
 {{if .PedidosOnline}}
 <div style="margin-top: 20px; width: 400px;">
     <h3 style="color:#e67e22; margin-bottom: 10px;">📱 Pedidos Online Pendientes</h3>
+<div id="pedidos_pendientes"> 
     {{range .PedidosOnline}}
     <a href="/online/detalle/{{.ID}}" style="text-decoration:none;">
     <div style="background: #fef9f0; border: 1px solid #e67e22; border-radius: 8px; padding: 10px 15px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor:pointer;">
@@ -104,6 +130,8 @@
     </div>
     </a>
     {{end}}
+    </div>
+
 </div>
 {{end}} 
 {{if .PedidosLocales}}

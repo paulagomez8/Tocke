@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Al Tocke - Comida Rápida</title>
+   
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -560,29 +561,16 @@
             }
 
             let itemsExpandidos = [];
-            let notasDeProductos = "";
 
             carrito.forEach(item => {
-                // Si el producto tiene una nota manual (con hielo, etc)
-                item.mods.forEach(m => {
-                    if (m.id === '0' || m.id === 0) {
-                        notasDeProductos += "• " + item.nombre + ": " + m.nombre + "\n";
-                    }
-                });
-
                 for (let i = 0; i < item.cant; i++) {
                     itemsExpandidos.push({ idPro: item.idPro, nombre: item.nombre, mods: item.mods });
                 }
             });
 
-            const campoNotas = document.getElementById('notas_pedido'); 
-            if (campoNotas) {
-                // Ponemos las notas de los productos arriba de la nota general
-                campoNotas.value = notasDeProductos + campoNotas.value;
-            }
-
             const jsonInput = document.getElementById('pedido_json');
             if (jsonInput) jsonInput.value = JSON.stringify(itemsExpandidos);
         });
     }
+</script>
 </script>
