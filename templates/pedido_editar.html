@@ -169,19 +169,40 @@
         }
 
         function renderPedido() {
-            const lista = document.getElementById('lista-pedido');
-            if (pedido.length === 0) {
-                lista.innerHTML = '<div class="vacio">Sin productos nuevos</div>';
-                return;
-            }
-            lista.innerHTML = pedido.map(item => `
-                <div class="pedido-item">
-                    <button class="btn-quitar" onclick="quitarItem(${item.key})">✕</button>
-                    <strong>${item.cant}x ${item.nombre}</strong>
-                    ${item.mods.length > 0 ? '<div class="mods">' + item.mods.map(m => '- ' + m.nombre).join('<br>') + '</div>' : ''}
-                </div>
-            `).join('');
+    const lista = document.getElementById('lista-pedido');   // cambia el id si es diferente
+
+    if (pedido.length === 0) {
+        lista.innerHTML = '<div class="vacio">Sin productos</div>';
+        return;
+    }
+
+    // Agrupar items iguales
+    const agrupados = {};
+    pedido.forEach(item => {
+        // Clave única: idPro + modificadores
+        const key = item.idPro + '-' + item.mods.map(m => m.id || m.nombre).sort().join(',');
+
+        if (!agrupados[key]) {
+            agrupados[key] = {
+                idPro: item.idPro,
+                nombre: item.nombre,
+                mods: item.mods,
+                cant: 0,
+                key: item.key   // puedes guardar uno de los keys
+            };
         }
+        agrupados[key].cant += item.cant;   // sumar cantidades
+    });
+
+    // Renderizar
+    lista.innerHTML = Object.values(agrupados).map(item => `
+        <div class="pedido-item">
+            <button class="btn-quitar" onclick="quitarItem(${item.key})">✕</button>
+            <strong>${item.cant}x ${item.nombre}</strong>
+            ${item.mods.length > 0 ? '<div class="mods">' + item.mods.map(m => '- ' + m.nombre).join('<br>') + '</div>' : ''}
+        </div>
+    `).join('');
+}
 
         document.getElementById('formPedido').addEventListener('submit', function(e) {
             if (pedido.length === 0) {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Reportes - Tocke San Felipe</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1100px; margin: 0 auto; }
         h1 { color: #333; }
         h2 { color: #555; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; }
@@ -32,13 +32,70 @@
         .mes-body.abierto { display: block; }
         .mes-total { color: #27ae60; font-weight: bold; }
         .mes-item { margin-bottom: 8px; }
+        .tipo-num { text-align: center; color: #555; }
+        .tipo-num.cero { color: #ccc; }
+        .filtro-wrap {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .filtro-wrap label { font-size: 14px; font-weight: bold; color: #444; }
+        .filtro-wrap input[type=date] {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .btn-filtro {
+            padding: 8px 18px;
+            background: #2980b9;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-filtro:hover { background: #1f6390; }
+        .btn-limpiar {
+            padding: 8px 18px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        .btn-limpiar:hover { background: #7f8c8d; }
+        .filtro-activo { background: #eaf4fb; border-color: #2980b9; }
+        .filtro-tag { font-size: 13px; color: #2980b9; font-weight: bold; }
     </style>
 </head>
 <body>
     <a class="back" href="/inicio">← Volver al inicio</a>
     <h1>Reportes</h1>
+
     <a href="/reportes/exportar" style="display: inline-block; margin-bottom: 20px; padding: 10px 20px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px; font-size: 14px;">📥 Exportar a Excel</a>
 
+    <!-- FILTRO DE FECHA -->
+    <div class="filtro-wrap {{if .FechaFiltro}}filtro-activo{{end}}">
+        <label>📅 Ver día específico:</label>
+        <input type="date" id="fecha-input" value="{{.FechaFiltro}}">
+        <button class="btn-filtro" onclick="filtrarFecha()">Ver</button>
+        {{if .FechaFiltro}}
+        <a href="/reportes" class="btn-limpiar">✕ Ver mes actual</a>
+        <span class="filtro-tag">Mostrando: {{.FechaFiltro}}</span>
+        {{end}}
+    </div>
+
+    <!-- VENTAS POR MES (solo si no hay filtro) -->
+    {{if not .FechaFiltro}}
     <h2>Ventas por Mes</h2>
     {{if .VentasMes}}
     {{range .VentasMes}}
@@ -61,24 +118,49 @@
     {{else}}
     <p class="vacio">No hay datos aún</p>
     {{end}}
+    {{end}}
 
-    <h2>Ventas por Día — Mes Actual</h2>
+    <!-- VENTAS POR DIA -->
+    <h2>
+        {{if .FechaFiltro}}Ventas del {{.FechaFiltro}}
+        {{else}}Ventas por Día — Mes Actual{{end}}
+    </h2>
     {{if .VentasDia}}
     <table>
-        <tr><th>Fecha</th><th>Pedidos</th><th>Total</th></tr>
+        <tr>
+            <th>Fecha</th>
+            <th>Pedidos</th>
+            <th>Total</th>
+            <th>Servir</th>
+            <th>Retiro</th>
+            <th>Llevar</th>
+            <th>Delivery</th>
+            <th>Ir comiendo</th>
+            <th>Online</th>
+        </tr>
         {{range .VentasDia}}
         <tr>
             <td>{{.Fecha}}</td>
             <td>{{.Pedidos}}</td>
             <td class="total">${{.Total}}</td>
+            <td class="tipo-num {{if eq .Servir 0}}cero{{end}}">{{.Servir}}</td>
+            <td class="tipo-num {{if eq .Retiro 0}}cero{{end}}">{{.Retiro}}</td>
+            <td class="tipo-num {{if eq .Llevar 0}}cero{{end}}">{{.Llevar}}</td>
+            <td class="tipo-num {{if eq .Delivery 0}}cero{{end}}">{{.Delivery}}</td>
+            <td class="tipo-num {{if eq .IrComiendo 0}}cero{{end}}">{{.IrComiendo}}</td>
+            <td class="tipo-num {{if eq .Online 0}}cero{{end}}">{{.Online}}</td>
         </tr>
         {{end}}
     </table>
     {{else}}
-    <p class="vacio">No hay datos aún</p>
+    <p class="vacio">No hay datos para esta fecha</p>
     {{end}}
 
-    <h2>Productos Más Vendidos — Mes Actual</h2>
+    <!-- PRODUCTOS MAS VENDIDOS -->
+    <h2>
+        {{if .FechaFiltro}}Productos más vendidos el {{.FechaFiltro}}
+        {{else}}Productos Más Vendidos — Mes Actual{{end}}
+    </h2>
     {{if .ProductosTop}}
     <table>
         <tr><th>Producto</th><th>Cantidad</th><th>Total</th></tr>
@@ -91,7 +173,7 @@
         {{end}}
     </table>
     {{else}}
-    <p class="vacio">No hay datos aún</p>
+    <p class="vacio">No hay datos para esta fecha</p>
     {{end}}
 
     <script>
@@ -99,6 +181,14 @@
             const body = header.nextElementSibling;
             body.classList.toggle('abierto');
         }
+        function filtrarFecha() {
+            const fecha = document.getElementById('fecha-input').value;
+            if (!fecha) { alert('Selecciona una fecha'); return; }
+            window.location.href = '/reportes?fecha=' + fecha;
+        }
+        document.getElementById('fecha-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') filtrarFecha();
+        });
     </script>
 </body>
 </html>

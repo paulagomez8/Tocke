@@ -191,11 +191,11 @@ func ConfirmarPedidoOnline(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Error interno", 500)
 		return
 	}
-
-	// Insertar el pedido principal sin columna 'fecha'
+	telefono := string(args.Peek("telefono"))
+	direccion := string(args.Peek("direccion"))
 	result, err := bases.DB.Exec(
-		"INSERT INTO pedidos_online (cliente, total, estado, tipo_pedido, notas, pedido_json, turno_id) VALUES (?, 0, 'pendiente', ?, ?, ?, ?)",
-		cliente, tipoPedido, notasGenerales, pedidoJSON, turnoID,
+		"INSERT INTO pedidos_online (cliente, telefono, total, estado, tipo_pedido, notas, pedido_json, turno_id, direccion) VALUES (?, ?, 0, 'pendiente', ?, ?, ?, ?, ?)",
+		cliente, telefono, tipoPedido, notasGenerales, pedidoJSON, turnoID, direccion,
 	)
 	if err != nil {
 		log.Println("Error al crear pedido online:", err)

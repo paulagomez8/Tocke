@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"tockesanfelipe/modules/bases"
 	"tockesanfelipe/modules/impresora"
-
 	"tockesanfelipe/modules/inventario"
 
 	"github.com/valyala/fasthttp"
@@ -364,7 +363,6 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		log.Println("Advertencia - impresora no disponible:", err)
 	}
 
-	inventario.DescontarStock(idPedido)
 	ctx.Redirect("/inicio", 302)
 }
 func CerrarPedido(ctx *fasthttp.RequestCtx) {
@@ -374,23 +372,27 @@ func CerrarPedido(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// Obtener la mesa asociada al pedido
 	var idMesa sql.NullInt64
 	bases.DB.QueryRow("SELECT id_mesa FROM pedidos WHERE id_ped = ?", idPedido).Scan(&idMesa)
-
-	// Marcar pedido como cerrado
 	bases.DB.Exec("UPDATE pedidos SET estado = 'cerrado' WHERE id_ped = ?", idPedido)
 
-	// Liberar la mesa si había una
 	if idMesa.Valid {
 		bases.DB.Exec("UPDATE mesas SET ocupada = 0 WHERE id_mesa = ?", idMesa.Int64)
 	}
+
+	log.Printf(">>> Llamando DescontarStock para pedido %d\n", idPedido)
+	inventario.DescontarStock(int64(idPedido))
+	log.Printf(">>> DescontarStock finalizado para pedido %d\n", idPedido)
 
 	ctx.Redirect("/inicio", 302)
 }
 func MarcarListo(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	bases.DB.Exec("UPDATE pedidos_online SET estado='listo' WHERE id_online=?", id)
+
+	// ✅ AGREGAR ESTA LÍNEA:
+	inventario.DescontarStockOnline(int64(id))
+
 	ctx.Redirect("/inicio", 302)
 }
 func DetalleOnline(ctx *fasthttp.RequestCtx) {
@@ -409,6 +411,8 @@ func DetalleOnline(ctx *fasthttp.RequestCtx) {
 		Fecha      string
 		TipoPedido string
 		Notas      string
+		Telefono   string
+		Direccion  string
 		Items      []ItemDetalle
 	}
 
@@ -418,9 +422,9 @@ func DetalleOnline(ctx *fasthttp.RequestCtx) {
 	// 1. Traer lo básico (Nombre, Total, Fecha, Tipo, Notas)
 	// Quitamos el pedido_json para que no de error si no existe la columna
 	err := bases.DB.QueryRow(`
-		SELECT cliente, total, DATE_FORMAT(fecha, '%d/%m %Y %H:%i'), tipo_pedido, IFNULL(notas, '') 
-		FROM pedidos_online WHERE id_online = ?`, id).Scan(
-		&data.Cliente, &data.Total, &data.Fecha, &data.TipoPedido, &data.Notas,
+    SELECT cliente, telefono, total, DATE_FORMAT(fecha, '%d/%m %Y %H:%i'), tipo_pedido, IFNULL(notas, ''), IFNULL(direccion, '')
+    FROM pedidos_online WHERE id_online = ?`, id).Scan(
+		&data.Cliente, &data.Telefono, &data.Total, &data.Fecha, &data.TipoPedido, &data.Notas, &data.Direccion,
 	)
 
 	if err != nil {
@@ -649,7 +653,6 @@ func AgregarAPedido(ctx *fasthttp.RequestCtx) {
 		log.Println("Advertencia - impresora no disponible:", err)
 	}
 
-	inventario.DescontarStock(int64(idPedido))
 	ctx.Redirect("/inicio", 302)
 }
 func EditarPedido(ctx *fasthttp.RequestCtx) {

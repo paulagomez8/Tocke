@@ -71,6 +71,7 @@ func main() {
 	r.GET("/", pedidos.Landing)
 	r.GET("/inicio", proteger(pedidos.Inicio))
 	r.POST("/pedidos/abrir", proteger(pedidos.AbrirPedidos))
+	r.POST("/online/whatsapp/{id}", proteger(pedidos.EnviarWhatsapp))
 	r.POST("/pedidos/cerrar", proteger(pedidos.CerrarPedidos))
 
 	r.ServeFiles("/static/{filepath:*}", "static")

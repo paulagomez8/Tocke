@@ -99,6 +99,12 @@
         <option value="Retiro">Retiro</option>
         <option value="Delivery">Delivery</option>
     </select>
+    <textarea name="notas_retiro" id="notas_retiro" 
+    placeholder="Especificaciones para el retiro..." 
+    style="display:none; width: 400px; padding: 10px; margin-top: 10px; 
+           font-size: 16px; border: 1px solid #ddd; border-radius: 5px; 
+           box-sizing: border-box; height: 75px; resize: vertical; font-family: Arial, sans-serif;">
+</textarea>
     <select id="selector_mesa" style="display:none; width: 400px; padding: 10px; margin-top: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
         <option value="">-- Seleccionar mesa --</option>
         {{range .Mesas}}
@@ -146,15 +152,28 @@
         }
 
 function mostrarMesas(tipo) {
-    const selector = document.getElementById('selector_mesa');
+    const selectorMesa = document.getElementById('selector_mesa');
+    const notasRetiro = document.getElementById('notas_retiro');
+
+    // Mesa (solo para Servir)
     if (tipo === 'Servir') {
-        selector.style.display = 'block';
-        selector.required = true;
+        selectorMesa.style.display = 'block';
+        selectorMesa.required = true;
     } else {
-        selector.style.display = 'none';
-        selector.required = false;
-        selector.value = '';
+        selectorMesa.style.display = 'none';
+        selectorMesa.required = false;
+        selectorMesa.value = '';
         document.getElementById('id_mesa').value = '';
+    }
+
+    // Notas para Retiro
+    if (tipo === 'Retiro') {
+        notasRetiro.style.display = 'block';
+        notasRetiro.required = true;
+    } else {
+        notasRetiro.style.display = 'none';
+        notasRetiro.required = false;
+        notasRetiro.value = '';
     }
 }
 

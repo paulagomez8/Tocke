@@ -51,80 +51,91 @@
                 <td>{{.Stock}}</td>
                 <td>{{.StockMinimo}}</td>
                 <td>{{.Unidad}}</td>
-               <td style="display:flex; gap:5px;">
-<button class="btn btn-blue" onclick="abrirEditar({{.ID}}, '{{.Nombre}}', {{.Stock}}, {{.StockMinimo}})">Editar</button>
-                <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/ingrediente/eliminar/{{.ID}}'">Eliminar</button>
-</td>
+                <td style="display:flex; gap:5px;">
+                    <button class="btn btn-blue"
+                        data-id="{{.ID}}"
+                        data-nombre="{{.Nombre}}"
+                        data-stock="{{.Stock}}"
+                        data-minimo="{{.StockMinimo}}"
+                        onclick="abrirEditar(this)">Editar</button>
+                    <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/ingrediente/eliminar/{{.ID}}'">Eliminar</button>
+                </td>
             </tr>
             {{end}}
         </table>
     </div>
 
-  <!-- Recetas -->
-<div class="seccion">
-    <h2>Recetas por Producto</h2>
-    <table>
-        <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Acción</th></tr>
-        {{range .Productos}}
-        {{if .Receta}}
-        <tr>
-            <td colspan="4" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
-        </tr>
-        {{range .Receta}}
-        <tr>
-            <td></td>
-            <td>{{.NombreIng}}</td>
-            <td>{{.Cantidad}}</td>
-            <td>
-                <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/receta/eliminar/{{$.ID}}/{{.IDIng}}'">Eliminar</button>
-            </td>
-        </tr>
-        {{end}}
-        {{end}}
-        <tr>
-            <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
-            <td colspan="3">
-                <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}">
-                    <select name="id_ing" required>
-                        {{range $.Ingredientes}}
-                        <option value="{{.ID}}">{{.Nombre}}</option>
-                        {{end}}
-                    </select>
-                    <input type="number" name="cantidad" placeholder="Cantidad" required style="width:80px">
-                    <button class="btn btn-green" type="submit">+ Agregar</button>
-                </form>
-            </td>
-        </tr>
-        {{end}}
-    </table>
-</div>
-   <!-- Modal editar stock -->
-<div class="modal" id="modalEditar">
-    <div class="modal-box">
-        <h3>Editar Ingrediente</h3>
-        <form method="POST" id="formEditar">
-            <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
-            <input type="number" name="stock" id="editStock" placeholder="Stock actual" required>
-            <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required>
-            <div class="modal-btns">
-                <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
-                <button type="submit" class="btn btn-green">Guardar</button>
-            </div>
-        </form>
+    <!-- Recetas -->
+    <div class="seccion">
+        <h2>Recetas por Producto</h2>
+        <table>
+            <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Acción</th></tr>
+            {{range .Productos}}
+            {{$idPro := .ID}}
+            {{if .Receta}}
+            <tr>
+                <td colspan="4" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
+            </tr>
+            {{range .Receta}}
+            <tr>
+                <td></td>
+                <td>{{.NombreIng}}</td>
+                <td>{{.Cantidad}}</td>
+                <td>
+                    <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/receta/eliminar/{{$idPro}}/{{.IDIng}}'">Eliminar</button>
+                </td>
+            </tr>
+            {{end}}
+            {{end}}
+            <tr>
+                <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
+                <td colspan="3">
+                    <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}">
+                        <select name="id_ing" required>
+                            {{range $.Ingredientes}}
+                            <option value="{{.ID}}">{{.Nombre}}</option>
+                            {{end}}
+                        </select>
+                        <input type="number" name="cantidad" placeholder="Cantidad" required style="width:80px">
+                        <button class="btn btn-green" type="submit">+ Agregar</button>
+                    </form>
+                </td>
+            </tr>
+            {{end}}
+        </table>
     </div>
-</div>
+
+    <!-- Modal editar stock -->
+    <div class="modal" id="modalEditar">
+        <div class="modal-box">
+            <h3>Editar Ingrediente</h3>
+            <form method="POST" id="formEditar">
+                <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
+                <input type="number" name="stock" id="editStock" placeholder="Stock actual" required>
+                <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required>
+                <div class="modal-btns">
+                    <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
+                    <button type="submit" class="btn btn-green">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
-       function abrirEditar(id, nombre, stock, minimo) {
-    document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
-    document.getElementById('editNombre').value = nombre;
-    document.getElementById('editStock').value = stock;
-    document.getElementById('editMinimo').value = minimo;
-    document.getElementById('modalEditar').classList.add('activo');
-}
-function cerrarEditar() {
-    document.getElementById('modalEditar').classList.remove('activo');
-}
+        function abrirEditar(btn) {
+            var id = btn.getAttribute('data-id');
+            var nombre = btn.getAttribute('data-nombre');
+            var stock = btn.getAttribute('data-stock');
+            var minimo = btn.getAttribute('data-minimo');
+            document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
+            document.getElementById('editNombre').value = nombre;
+            document.getElementById('editStock').value = stock;
+            document.getElementById('editMinimo').value = minimo;
+            document.getElementById('modalEditar').classList.add('activo');
+        }
+        function cerrarEditar() {
+            document.getElementById('modalEditar').classList.remove('activo');
+        }
     </script>
 </body>
 </html>

@@ -147,21 +147,15 @@ func ObtenerAlertas() []Ingrediente {
 	}
 	return alertas
 }
-
 func DescontarStock(idPedido int64) {
-	// Obtener tipo de pedido
 	var tipoPedido string
 	bases.DB.QueryRow("SELECT tipo_pedido FROM pedidos WHERE id_ped=?", idPedido).Scan(&tipoPedido)
+	log.Printf(">>> tipoPedido: '%s'\n", tipoPedido)
 
-	// Descontar plumavit si corresponde
 	if tipoPedido == "Llevar" || tipoPedido == "Retiro" || tipoPedido == "Delivery" {
-		bases.DB.Exec(`
-			UPDATE ingredientes SET stock = stock - 1 
-			WHERE nombre = 'Plumavit'
-		`)
+		bases.DB.Exec("UPDATE ingredientes SET stock = stock - 1 WHERE nombre = 'Plumavit'")
 	}
 
-	// Descontar por receta
 	rows, err := bases.DB.Query("SELECT id_pro, cantidad FROM pedidos_detalle WHERE id_ped=?", idPedido)
 	if err != nil {
 		log.Println("Error DescontarStock:", err)
@@ -176,22 +170,98 @@ func DescontarStock(idPedido int64) {
 		rows.Scan(&d.idPro, &d.cantidad)
 		detalles = append(detalles, d)
 	}
+	log.Printf(">>> detalles encontrados: %d\n", len(detalles))
 
 	for _, d := range detalles {
-		recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
-		if err != nil {
-			continue
-		}
-		defer recetas.Close()
-		for recetas.Next() {
-			var idIng, cantRec int
-			recetas.Scan(&idIng, &cantRec)
-			res, err := bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", cantRec*d.cantidad, idIng)
+		var tieneReceta int
+		bases.DB.QueryRow("SELECT COUNT(*) FROM recetas WHERE id_pro=?", d.idPro).Scan(&tieneReceta)
+		log.Printf(">>> producto %d cantidad %d tieneReceta %d\n", d.idPro, d.cantidad, tieneReceta)
+
+		if tieneReceta > 0 {
+			recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
 			if err != nil {
-				log.Println("Error al descontar stock:", err)
+				continue
+			}
+			for recetas.Next() {
+				var idIng, cantRec int
+				recetas.Scan(&idIng, &cantRec)
+				log.Printf(">>> descontando ingrediente %d cantidad %d\n", idIng, cantRec*d.cantidad)
+				bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", cantRec*d.cantidad, idIng)
+			}
+			recetas.Close()
+		} else {
+			var nombrePro string
+			bases.DB.QueryRow("SELECT nombre FROM productos WHERE id_pro=?", d.idPro).Scan(&nombrePro)
+			log.Printf(">>> sin receta, descontando por nombre: '%s'\n", nombrePro)
+			bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE nombre = ?", d.cantidad, nombrePro)
+		}
+	}
+}
+func DescontarStockOnline(idOnline int64) {
+	// Obtener tipo de pedido
+	var tipoPedido string
+	bases.DB.QueryRow("SELECT tipo_pedido FROM pedidos_online WHERE id_online=?", idOnline).Scan(&tipoPedido)
+
+	// Descontar envase si corresponde
+	if tipoPedido == "Llevar" || tipoPedido == "Retiro" || tipoPedido == "Delivery" {
+		bases.DB.Exec("UPDATE ingredientes SET stock = stock - 1 WHERE nombre = 'Plumavit'")
+	}
+
+	// Obtener detalle del pedido online
+	rows, err := bases.DB.Query("SELECT id_pro, cantidad FROM pedidos_online_detalle WHERE id_online=?", idOnline)
+	if err != nil {
+		log.Println("Error DescontarStockOnline al obtener detalle:", err)
+		return
+	}
+	defer rows.Close()
+
+	type detalle struct{ idPro, cantidad int }
+	var detalles []detalle
+	for rows.Next() {
+		var d detalle
+		rows.Scan(&d.idPro, &d.cantidad)
+		detalles = append(detalles, d)
+	}
+
+	for _, d := range detalles {
+		// Verificar si el producto tiene receta
+		var tieneReceta int
+		bases.DB.QueryRow("SELECT COUNT(*) FROM recetas WHERE id_pro=?", d.idPro).Scan(&tieneReceta)
+
+		if tieneReceta > 0 {
+			// Tiene receta: descontar ingredientes
+			recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
+			if err != nil {
+				log.Println("Error al obtener receta del producto:", d.idPro, err)
+				continue
+			}
+			for recetas.Next() {
+				var idIng, cantRec int
+				recetas.Scan(&idIng, &cantRec)
+				_, err := bases.DB.Exec(
+					"UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?",
+					cantRec*d.cantidad, idIng,
+				)
+				if err != nil {
+					log.Println("Error al descontar ingrediente:", idIng, err)
+				}
+			}
+			recetas.Close()
+		} else {
+			// Sin receta: descontar por nombre del producto
+			var nombrePro string
+			bases.DB.QueryRow("SELECT nombre FROM productos WHERE id_pro=?", d.idPro).Scan(&nombrePro)
+			res, err := bases.DB.Exec(
+				"UPDATE ingredientes SET stock = stock - ? WHERE nombre = ?",
+				d.cantidad, nombrePro,
+			)
+			if err != nil {
+				log.Println("Error al descontar producto sin receta:", nombrePro, err)
 			} else {
 				filas, _ := res.RowsAffected()
-				log.Printf("Producto %d: %d filas afectadas\n", d.idPro, filas)
+				if filas == 0 {
+					log.Printf("Sin receta y sin ingrediente matching: %s (id:%d)\n", nombrePro, d.idPro)
+				}
 			}
 		}
 	}
