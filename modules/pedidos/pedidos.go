@@ -433,7 +433,7 @@ func DetalleOnline(ctx *fasthttp.RequestCtx) {
 
 	// 2. Traer productos
 	rows, err := bases.DB.Query(`
-    SELECT pr.nombre, pod.cantidad, pod.precio, pod.id_ped, IFNULL(pod.notas_producto, '')
+	SELECT pr.nombre, pod.cantidad, pod.precio, pod.id_online, IFNULL(pod.notas_producto, '')
     FROM pedidos_online_detalle pod
     JOIN productos pr ON pod.id_pro = pr.id_pro
     WHERE pod.id_online = ?
