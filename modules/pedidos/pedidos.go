@@ -397,7 +397,7 @@ func MarcarListo(ctx *fasthttp.RequestCtx) {
 }
 func DetalleOnline(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
-
+	log.Printf(">>> DetalleOnline id: %d\n", id)
 	type ItemDetalle struct {
 		Nombre        string
 		Cantidad      int
