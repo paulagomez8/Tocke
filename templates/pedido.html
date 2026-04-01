@@ -112,7 +112,9 @@
             {{.Nombre}} {{if .Ocupada}}(Ocupada){{else}}(Libre){{end}}
         </option>
         {{end}}
-    </select>
+   </select>
+    <textarea name="notas" id="notas" placeholder="Notas del pedido..." 
+    style="width: 400px; padding: 10px; margin-top: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; height: 75px; resize: vertical; font-family: Arial, sans-serif;"></textarea>
     <button class="btn" type="submit">Confirmar Pedido</button>
 </form>
 

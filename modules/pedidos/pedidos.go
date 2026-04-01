@@ -60,6 +60,7 @@ func Inicio(ctx *fasthttp.RequestCtx) {
 		Fecha      string
 		TipoPedido string
 		Mesa       string
+		Notas      string
 	}
 	type InicioData struct {
 		TurnoActivo    *TurnoActivo
@@ -145,8 +146,8 @@ func Inicio(ctx *fasthttp.RequestCtx) {
 	bases.DB.QueryRow("SELECT valor FROM configuracion WHERE clave='pedidos_online'").Scan(&estadoPedidos)
 	data.PedidosAbiertos = estadoPedidos == "abierto"
 	rowsLocales, err := bases.DB.Query(`
-    SELECT p.id_ped, p.cliente, p.total, DATE_FORMAT(p.fecha, '%H:%i'), p.tipo_pedido, COALESCE(m.nombre, '-')
-    FROM pedidos p
+    SELECT p.id_ped, p.cliente, p.total, DATE_FORMAT(p.fecha, '%H:%i'), p.tipo_pedido, COALESCE(m.nombre, '-'), COALESCE(p.notas, '')
+	FROM pedidos p
     LEFT JOIN mesas m ON p.id_mesa = m.id_mesa
     WHERE p.estado = 'abierto'
     ORDER BY p.fecha ASC
@@ -155,7 +156,7 @@ func Inicio(ctx *fasthttp.RequestCtx) {
 		defer rowsLocales.Close()
 		for rowsLocales.Next() {
 			var p PedidoAbierto
-			rowsLocales.Scan(&p.ID, &p.Cliente, &p.Total, &p.Fecha, &p.TipoPedido, &p.Mesa)
+			rowsLocales.Scan(&p.ID, &p.Cliente, &p.Total, &p.Fecha, &p.TipoPedido, &p.Mesa, &p.Notas)
 			data.PedidosLocales = append(data.PedidosLocales, p)
 		}
 	}
@@ -263,6 +264,7 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	cliente := string(args.Peek("cliente"))
 	tipoPedido := string(args.Peek("tipo_pedido"))
 	pedidoJSON := string(args.Peek("pedido_json"))
+	notas := string(args.Peek("notas"))
 	idMesa, _ := strconv.Atoi(string(args.Peek("id_mesa")))
 
 	type ItemJSON struct {
@@ -285,13 +287,13 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	var err error
 	if idMesa > 0 {
 		result, err = bases.DB.Exec(
-			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido, id_mesa, estado) VALUES (NOW(), 0, ?, ?, ?, 'abierto')",
-			cliente, tipoPedido, idMesa,
+			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido, id_mesa, estado, notas) VALUES (NOW(), 0, ?, ?, ?, 'abierto', ?)",
+			cliente, tipoPedido, idMesa, notas,
 		)
 	} else {
 		result, err = bases.DB.Exec(
-			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido, estado) VALUES (NOW(), 0, ?, ?, 'abierto')",
-			cliente, tipoPedido,
+			"INSERT INTO pedidos (fecha, total, cliente, tipo_pedido, estado, notas) VALUES (NOW(), 0, ?, ?, 'abierto', ?)",
+			cliente, tipoPedido, notas,
 		)
 	}
 	if err != nil {

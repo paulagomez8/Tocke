@@ -150,7 +150,8 @@ function MostrarNuevoPedido(data) {
         <div style="margin-bottom: 10px;">
             <strong style="font-size: 16px;">#{{.ID}} — {{.Cliente}}</strong>
             <div style="font-size: 13.5px; color: #444; margin-top: 4px;">
-                {{.Fecha}} — ${{.Total}} — {{.TipoPedido}} — Mesa: {{.Mesa}}
+{{.Fecha}} — ${{.Total}} — {{.TipoPedido}} — Mesa: {{.Mesa}}
+{{if .Notas}}<div style="font-size:13px; color:#e67e22; margin-top:4px;">📝 {{.Notas}}</div>{{end}}
             </div>
         </div>
         
