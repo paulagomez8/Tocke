@@ -309,6 +309,8 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		Nombre   string
 		Cantidad int
 		Mods     []string
+		IDPro    int
+		Precio   int
 	}
 	agrupados := map[string]*ItemAgrupado{}
 	var ordenAgrupado []string
@@ -316,19 +318,10 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 	for _, item := range itemsJSON {
 		var precio int
 		bases.DB.QueryRow("SELECT precio FROM productos WHERE id_pro = ?", item.IDPro).Scan(&precio)
-		bases.DB.Exec(
-			"INSERT INTO pedidos_detalle (id_ped, id_pro, cantidad, precio) VALUES (?, ?, 1, ?)",
-			idPedido, item.IDPro, precio,
-		)
 		total += precio
 
 		var modNombres []string
 		for _, mod := range item.Mods {
-			idMod, _ := strconv.Atoi(mod.ID)
-			bases.DB.Exec(
-				"INSERT INTO pedidos_modificadores (id_ped, id_pro, id_mod) VALUES (?, ?, ?)",
-				idPedido, item.IDPro, idMod,
-			)
 			modNombres = append(modNombres, mod.Nombre)
 		}
 
@@ -338,7 +331,7 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 		}
 
 		if _, existe := agrupados[modsKey]; !existe {
-			agrupados[modsKey] = &ItemAgrupado{Nombre: item.Nombre, Cantidad: 0, Mods: modNombres}
+			agrupados[modsKey] = &ItemAgrupado{Nombre: item.Nombre, Cantidad: 0, Mods: modNombres, IDPro: item.IDPro, Precio: precio}
 			ordenAgrupado = append(ordenAgrupado, modsKey)
 		}
 		agrupados[modsKey].Cantidad++
@@ -348,6 +341,30 @@ func ConfirmarPedido(ctx *fasthttp.RequestCtx) {
 
 	if idMesa > 0 {
 		bases.DB.Exec("UPDATE mesas SET ocupada=1 WHERE id_mesa=?", idMesa)
+	}
+
+	for _, key := range ordenAgrupado {
+		a := agrupados[key]
+		bases.DB.Exec(
+			"INSERT INTO pedidos_detalle (id_ped, id_pro, cantidad, precio) VALUES (?, ?, ?, ?)",
+			idPedido, a.IDPro, a.Cantidad, a.Precio,
+		)
+		for _, item := range itemsJSON {
+			modsKeyItem := item.Nombre
+			for _, m := range item.Mods {
+				modsKeyItem += "_" + m.Nombre
+			}
+			if modsKeyItem == key {
+				for _, mod := range item.Mods {
+					idMod, _ := strconv.Atoi(mod.ID)
+					bases.DB.Exec(
+						"INSERT INTO pedidos_modificadores (id_ped, id_pro, id_mod) VALUES (?, ?, ?)",
+						idPedido, a.IDPro, idMod,
+					)
+				}
+				break
+			}
+		}
 	}
 
 	var items []impresora.ItemTicket
