@@ -12,8 +12,8 @@ import (
 type Ingrediente struct {
 	ID          int
 	Nombre      string
-	Stock       int
-	StockMinimo int
+	Stock       float64
+	StockMinimo float64
 	Unidad      string
 	Alerta      bool
 }
@@ -21,7 +21,7 @@ type Ingrediente struct {
 type RecetaItem struct {
 	IDIng     int
 	NombreIng string
-	Cantidad  int
+	Cantidad  float64
 }
 
 type ProductoReceta struct {
@@ -94,8 +94,8 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 
 func AgregarIngrediente(ctx *fasthttp.RequestCtx) {
 	nombre := string(ctx.FormValue("nombre"))
-	stock, _ := strconv.Atoi(string(ctx.FormValue("stock")))
-	stockMinimo, _ := strconv.Atoi(string(ctx.FormValue("stock_minimo")))
+	stock, _ := strconv.ParseFloat(string(ctx.FormValue("stock")), 64)
+	stockMinimo, _ := strconv.ParseFloat(string(ctx.FormValue("stock_minimo")), 64)
 	unidad := string(ctx.FormValue("unidad"))
 	bases.DB.Exec("INSERT INTO ingredientes (nombre, stock, stock_minimo, unidad) VALUES (?, ?, ?, ?)", nombre, stock, stockMinimo, unidad)
 	ctx.Redirect("/inventario", 302)
@@ -104,9 +104,10 @@ func AgregarIngrediente(ctx *fasthttp.RequestCtx) {
 func EditarStock(ctx *fasthttp.RequestCtx) {
 	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	nombre := string(ctx.FormValue("nombre"))
-	stock, _ := strconv.Atoi(string(ctx.FormValue("stock")))
-	stockMinimo, _ := strconv.Atoi(string(ctx.FormValue("stock_minimo")))
-	bases.DB.Exec("UPDATE ingredientes SET nombre=?, stock=?, stock_minimo=? WHERE id_ing=?", nombre, stock, stockMinimo, id)
+	stock, _ := strconv.ParseFloat(string(ctx.FormValue("stock")), 64)
+	stockMinimo, _ := strconv.ParseFloat(string(ctx.FormValue("stock_minimo")), 64)
+	unidad := string(ctx.FormValue("unidad"))
+	bases.DB.Exec("UPDATE ingredientes SET nombre=?, stock=?, stock_minimo=?, unidad=? WHERE id_ing=?", nombre, stock, stockMinimo, unidad, id)
 	ctx.Redirect("/inventario", 302)
 }
 

@@ -38,8 +38,8 @@
         <h2>Ingredientes</h2>
         <form class="form-inline" method="POST" action="/inventario/ingrediente/agregar">
             <input type="text" name="nombre" placeholder="Nombre" required>
-            <input type="number" name="stock" placeholder="Stock inicial" required style="width:120px">
-            <input type="number" name="stock_minimo" placeholder="Stock mínimo" required style="width:130px">
+            <input type="number" name="stock" placeholder="Stock inicial" required step="0.01" style="width:120px">
+            <input type="number" name="stock_minimo" placeholder="Stock mínimo" required step="0.01" style="width:130px">
             <input type="text" name="unidad" placeholder="Unidad (kg, unidad...)" required style="width:150px">
             <button class="btn btn-green" type="submit">+ Agregar</button>
         </form>
@@ -53,11 +53,12 @@
                 <td>{{.Unidad}}</td>
                 <td style="display:flex; gap:5px;">
                     <button class="btn btn-blue"
-                        data-id="{{.ID}}"
-                        data-nombre="{{.Nombre}}"
-                        data-stock="{{.Stock}}"
-                        data-minimo="{{.StockMinimo}}"
-                        onclick="abrirEditar(this)">Editar</button>
+    data-id="{{.ID}}"
+    data-nombre="{{.Nombre}}"
+    data-stock="{{.Stock}}"
+    data-minimo="{{.StockMinimo}}"
+    data-unidad="{{.Unidad}}"
+    onclick="abrirEditar(this)">Editar</button>
                     <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/ingrediente/eliminar/{{.ID}}'">Eliminar</button>
                 </td>
             </tr>
@@ -111,8 +112,9 @@
             <h3>Editar Ingrediente</h3>
             <form method="POST" id="formEditar">
                 <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
-                <input type="number" name="stock" id="editStock" placeholder="Stock actual" required>
-                <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required>
+               <input type="number" name="stock" id="editStock" placeholder="Stock actual" required step="0.01">
+                <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required step="0.01">
+                <input type="text" name="unidad" id="editUnidad" placeholder="Unidad (kg, unidad...)" required>
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
                     <button type="submit" class="btn btn-green">Guardar</button>
@@ -123,16 +125,18 @@
 
     <script>
         function abrirEditar(btn) {
-            var id = btn.getAttribute('data-id');
-            var nombre = btn.getAttribute('data-nombre');
-            var stock = btn.getAttribute('data-stock');
-            var minimo = btn.getAttribute('data-minimo');
-            document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
-            document.getElementById('editNombre').value = nombre;
-            document.getElementById('editStock').value = stock;
-            document.getElementById('editMinimo').value = minimo;
-            document.getElementById('modalEditar').classList.add('activo');
-        }
+    var id = btn.getAttribute('data-id');
+    var nombre = btn.getAttribute('data-nombre');
+    var stock = btn.getAttribute('data-stock');
+    var minimo = btn.getAttribute('data-minimo');
+    var unidad = btn.getAttribute('data-unidad');
+    document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
+    document.getElementById('editNombre').value = nombre;
+    document.getElementById('editStock').value = stock;
+    document.getElementById('editMinimo').value = minimo;
+    document.getElementById('editUnidad').value = unidad;
+    document.getElementById('modalEditar').classList.add('activo');
+}
         function cerrarEditar() {
             document.getElementById('modalEditar').classList.remove('activo');
         }

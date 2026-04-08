@@ -378,6 +378,7 @@
     <div class="contenido">
         <div class="seccion-titulo">📋 Menú</div>
         {{range .}}
+        {{if ne .Nombre "Envases"}}
         <div class="categoria">
             <div class="categoria-header" onclick="toggle(this)">
                 <span>{{.Nombre}}</span>
@@ -412,6 +413,7 @@
             </div>
         </div>
         {{end}}
+                {{end}}
     </div>
 
     <!-- CARRITO -->

@@ -17,7 +17,7 @@ const (
 	// modoConexion = "tcp"
 	// direccion    = "192.168.1.100:9100"
 	modoConexion = "tcp"
-	direccion    = "192.168.1.100:9100" // <-- cambiar por la IP real de la impresora
+	direccion    = "192.168.100.86:9100" // <-- cambiar por la IP real de la impresora
 )
 
 func ImprimirTicket(idPedido int, cliente string, items []ItemTicket) error {
