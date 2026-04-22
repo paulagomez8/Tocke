@@ -26,6 +26,7 @@
         .modal-box h3 { margin-top: 0; }
         .modal-box input { width: 100%; margin-bottom: 10px; box-sizing: border-box; }
         .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .costo-total { font-weight: bold; color: #27ae60; }
     </style>
 </head>
 
@@ -41,24 +42,27 @@
             <input type="number" name="stock" placeholder="Stock inicial" required step="0.01" style="width:120px">
             <input type="number" name="stock_minimo" placeholder="Stock mínimo" required step="0.01" style="width:130px">
             <input type="text" name="unidad" placeholder="Unidad (kg, unidad...)" required style="width:150px">
+            <input type="number" name="precio_compra" placeholder="Precio compra" required step="0.01" style="width:130px">
             <button class="btn btn-green" type="submit">+ Agregar</button>
         </form>
         <table>
-            <tr><th>Nombre</th><th>Stock</th><th>Mínimo</th><th>Unidad</th><th>Acciones</th></tr>
+            <tr><th>Nombre</th><th>Stock</th><th>Mínimo</th><th>Unidad</th><th>Precio compra</th><th>Acciones</th></tr>
             {{range .Ingredientes}}
             <tr {{if .Alerta}}class="alerta"{{end}}>
                 <td>{{.Nombre}} {{if .Alerta}}⚠️{{end}}</td>
                 <td>{{.Stock}}</td>
                 <td>{{.StockMinimo}}</td>
                 <td>{{.Unidad}}</td>
+                <td>${{.PrecioCompra}}</td>
                 <td style="display:flex; gap:5px;">
                     <button class="btn btn-blue"
-    data-id="{{.ID}}"
-    data-nombre="{{.Nombre}}"
-    data-stock="{{.Stock}}"
-    data-minimo="{{.StockMinimo}}"
-    data-unidad="{{.Unidad}}"
-    onclick="abrirEditar(this)">Editar</button>
+                        data-id="{{.ID}}"
+                        data-nombre="{{.Nombre}}"
+                        data-stock="{{.Stock}}"
+                        data-minimo="{{.StockMinimo}}"
+                        data-unidad="{{.Unidad}}"
+                        data-precio="{{.PrecioCompra}}"
+                        onclick="abrirEditar(this)">Editar</button>
                     <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/ingrediente/eliminar/{{.ID}}'">Eliminar</button>
                 </td>
             </tr>
@@ -70,34 +74,41 @@
     <div class="seccion">
         <h2>Recetas por Producto</h2>
         <table>
-            <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Acción</th></tr>
+            <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Costo</th><th>Acción</th></tr>
             {{range .Productos}}
             {{$idPro := .ID}}
             {{if .Receta}}
             <tr>
-                <td colspan="4" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
+                <td colspan="5" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
             </tr>
             {{range .Receta}}
             <tr>
                 <td></td>
                 <td>{{.NombreIng}}</td>
                 <td>{{.Cantidad}}</td>
+                <td>${{.Costo}}</td>
                 <td>
                     <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/receta/eliminar/{{$idPro}}/{{.IDIng}}'">Eliminar</button>
                 </td>
             </tr>
             {{end}}
+            <tr>
+                <td></td>
+                <td colspan="2" style="text-align:right; font-weight:bold;">Costo total:</td>
+                <td class="costo-total">${{.CostoTotal}}</td>
+                <td></td>
+            </tr>
             {{end}}
             <tr>
                 <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
-                <td colspan="3">
+                <td colspan="4">
                     <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}">
                         <select name="id_ing" required>
                             {{range $.Ingredientes}}
                             <option value="{{.ID}}">{{.Nombre}}</option>
                             {{end}}
                         </select>
-                        <input type="number" name="cantidad" placeholder="Cantidad" required style="width:80px">
+                        <input type="number" name="cantidad" placeholder="Cantidad" required step="0.01" style="width:80px">
                         <button class="btn btn-green" type="submit">+ Agregar</button>
                     </form>
                 </td>
@@ -112,9 +123,10 @@
             <h3>Editar Ingrediente</h3>
             <form method="POST" id="formEditar">
                 <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
-               <input type="number" name="stock" id="editStock" placeholder="Stock actual" required step="0.01">
+                <input type="number" name="stock" id="editStock" placeholder="Stock actual" required step="0.01">
                 <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required step="0.01">
                 <input type="text" name="unidad" id="editUnidad" placeholder="Unidad (kg, unidad...)" required>
+                <input type="number" name="precio_compra" id="editPrecio" placeholder="Precio compra" required step="0.01">
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
                     <button type="submit" class="btn btn-green">Guardar</button>
@@ -125,18 +137,20 @@
 
     <script>
         function abrirEditar(btn) {
-    var id = btn.getAttribute('data-id');
-    var nombre = btn.getAttribute('data-nombre');
-    var stock = btn.getAttribute('data-stock');
-    var minimo = btn.getAttribute('data-minimo');
-    var unidad = btn.getAttribute('data-unidad');
-    document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
-    document.getElementById('editNombre').value = nombre;
-    document.getElementById('editStock').value = stock;
-    document.getElementById('editMinimo').value = minimo;
-    document.getElementById('editUnidad').value = unidad;
-    document.getElementById('modalEditar').classList.add('activo');
-}
+            var id = btn.getAttribute('data-id');
+            var nombre = btn.getAttribute('data-nombre');
+            var stock = btn.getAttribute('data-stock');
+            var minimo = btn.getAttribute('data-minimo');
+            var unidad = btn.getAttribute('data-unidad');
+            var precio = btn.getAttribute('data-precio');
+            document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + id;
+            document.getElementById('editNombre').value = nombre;
+            document.getElementById('editStock').value = stock;
+            document.getElementById('editMinimo').value = minimo;
+            document.getElementById('editUnidad').value = unidad;
+            document.getElementById('editPrecio').value = precio;
+            document.getElementById('modalEditar').classList.add('activo');
+        }
         function cerrarEditar() {
             document.getElementById('modalEditar').classList.remove('activo');
         }

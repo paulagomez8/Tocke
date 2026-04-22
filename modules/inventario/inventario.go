@@ -10,24 +10,27 @@ import (
 )
 
 type Ingrediente struct {
-	ID          int
-	Nombre      string
-	Stock       float64
-	StockMinimo float64
-	Unidad      string
-	Alerta      bool
+	ID           int
+	Nombre       string
+	Stock        float64
+	StockMinimo  float64
+	Unidad       string
+	PrecioCompra float64
+	Alerta       bool
 }
 
 type RecetaItem struct {
 	IDIng     int
 	NombreIng string
 	Cantidad  float64
+	Costo     float64
 }
 
 type ProductoReceta struct {
-	ID     int
-	Nombre string
-	Receta []RecetaItem
+	ID         int
+	Nombre     string
+	CostoTotal float64
+	Receta     []RecetaItem
 }
 
 type InventarioData struct {
@@ -39,18 +42,24 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 	var data InventarioData
 
 	// Obtener ingredientes
-	rows, err := bases.DB.Query("SELECT id_ing, nombre, stock, stock_minimo, unidad FROM ingredientes ORDER BY nombre")
+	rows, err := bases.DB.Query("SELECT id_ing, nombre, stock, stock_minimo, unidad, precio_compra FROM ingredientes ORDER BY nombre")
 	if err != nil {
 		log.Println("Error al obtener ingredientes:", err)
 		ctx.Error("Error al obtener ingredientes", 500)
 		return
 	}
-	defer rows.Close()
 	for rows.Next() {
 		var i Ingrediente
-		rows.Scan(&i.ID, &i.Nombre, &i.Stock, &i.StockMinimo, &i.Unidad)
+		rows.Scan(&i.ID, &i.Nombre, &i.Stock, &i.StockMinimo, &i.Unidad, &i.PrecioCompra)
 		i.Alerta = i.Stock <= i.StockMinimo
 		data.Ingredientes = append(data.Ingredientes, i)
+	}
+	rows.Close()
+
+	// Mapa precio_compra por id para calcular costos
+	precioMap := map[int]float64{}
+	for _, ing := range data.Ingredientes {
+		precioMap[ing.ID] = ing.PrecioCompra
 	}
 
 	// Obtener todos los productos
@@ -76,6 +85,8 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 			for rowsRec.Next() {
 				var r RecetaItem
 				rowsRec.Scan(&r.IDIng, &r.NombreIng, &r.Cantidad)
+				r.Costo = r.Cantidad * precioMap[r.IDIng]
+				p.CostoTotal += r.Costo
 				p.Receta = append(p.Receta, r)
 			}
 		}
@@ -97,7 +108,8 @@ func AgregarIngrediente(ctx *fasthttp.RequestCtx) {
 	stock, _ := strconv.ParseFloat(string(ctx.FormValue("stock")), 64)
 	stockMinimo, _ := strconv.ParseFloat(string(ctx.FormValue("stock_minimo")), 64)
 	unidad := string(ctx.FormValue("unidad"))
-	bases.DB.Exec("INSERT INTO ingredientes (nombre, stock, stock_minimo, unidad) VALUES (?, ?, ?, ?)", nombre, stock, stockMinimo, unidad)
+	precioCompra, _ := strconv.ParseFloat(string(ctx.FormValue("precio_compra")), 64)
+	bases.DB.Exec("INSERT INTO ingredientes (nombre, stock, stock_minimo, unidad, precio_compra) VALUES (?, ?, ?, ?, ?)", nombre, stock, stockMinimo, unidad, precioCompra)
 	ctx.Redirect("/inventario", 302)
 }
 
@@ -107,7 +119,8 @@ func EditarStock(ctx *fasthttp.RequestCtx) {
 	stock, _ := strconv.ParseFloat(string(ctx.FormValue("stock")), 64)
 	stockMinimo, _ := strconv.ParseFloat(string(ctx.FormValue("stock_minimo")), 64)
 	unidad := string(ctx.FormValue("unidad"))
-	bases.DB.Exec("UPDATE ingredientes SET nombre=?, stock=?, stock_minimo=?, unidad=? WHERE id_ing=?", nombre, stock, stockMinimo, unidad, id)
+	precioCompra, _ := strconv.ParseFloat(string(ctx.FormValue("precio_compra")), 64)
+	bases.DB.Exec("UPDATE ingredientes SET nombre=?, stock=?, stock_minimo=?, unidad=?, precio_compra=? WHERE id_ing=?", nombre, stock, stockMinimo, unidad, precioCompra, id)
 	ctx.Redirect("/inventario", 302)
 }
 
@@ -121,7 +134,7 @@ func EliminarIngrediente(ctx *fasthttp.RequestCtx) {
 func AgregarReceta(ctx *fasthttp.RequestCtx) {
 	idPro, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	idIng, _ := strconv.Atoi(string(ctx.FormValue("id_ing")))
-	cantidad, _ := strconv.Atoi(string(ctx.FormValue("cantidad")))
+	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
 	bases.DB.Exec("INSERT INTO recetas (id_pro, id_ing, cantidad) VALUES (?, ?, ?)", idPro, idIng, cantidad)
 	ctx.Redirect("/inventario", 302)
 }
@@ -135,19 +148,20 @@ func EliminarReceta(ctx *fasthttp.RequestCtx) {
 
 func ObtenerAlertas() []Ingrediente {
 	var alertas []Ingrediente
-	rows, err := bases.DB.Query("SELECT id_ing, nombre, stock, stock_minimo, unidad FROM ingredientes WHERE stock <= stock_minimo")
+	rows, err := bases.DB.Query("SELECT id_ing, nombre, stock, stock_minimo, unidad, precio_compra FROM ingredientes WHERE stock <= stock_minimo")
 	if err != nil {
 		return alertas
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var i Ingrediente
-		rows.Scan(&i.ID, &i.Nombre, &i.Stock, &i.StockMinimo, &i.Unidad)
+		rows.Scan(&i.ID, &i.Nombre, &i.Stock, &i.StockMinimo, &i.Unidad, &i.PrecioCompra)
 		i.Alerta = true
 		alertas = append(alertas, i)
 	}
 	return alertas
 }
+
 func DescontarStock(idPedido int64) {
 	var tipoPedido string
 	bases.DB.QueryRow("SELECT tipo_pedido FROM pedidos WHERE id_ped=?", idPedido).Scan(&tipoPedido)
@@ -184,10 +198,11 @@ func DescontarStock(idPedido int64) {
 				continue
 			}
 			for recetas.Next() {
-				var idIng, cantRec int
+				var idIng int
+				var cantRec float64
 				recetas.Scan(&idIng, &cantRec)
-				log.Printf(">>> descontando ingrediente %d cantidad %d\n", idIng, cantRec*d.cantidad)
-				bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", cantRec*d.cantidad, idIng)
+				log.Printf(">>> descontando ingrediente %d cantidad %f\n", idIng, cantRec*float64(d.cantidad))
+				bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", cantRec*float64(d.cantidad), idIng)
 			}
 			recetas.Close()
 		} else {
@@ -198,17 +213,15 @@ func DescontarStock(idPedido int64) {
 		}
 	}
 }
+
 func DescontarStockOnline(idOnline int64) {
-	// Obtener tipo de pedido
 	var tipoPedido string
 	bases.DB.QueryRow("SELECT tipo_pedido FROM pedidos_online WHERE id_online=?", idOnline).Scan(&tipoPedido)
 
-	// Descontar envase si corresponde
 	if tipoPedido == "Llevar" || tipoPedido == "Retiro" || tipoPedido == "Delivery" {
 		bases.DB.Exec("UPDATE ingredientes SET stock = stock - 1 WHERE nombre = 'Plumavit'")
 	}
 
-	// Obtener detalle del pedido online
 	rows, err := bases.DB.Query("SELECT id_pro, cantidad FROM pedidos_online_detalle WHERE id_online=?", idOnline)
 	if err != nil {
 		log.Println("Error DescontarStockOnline al obtener detalle:", err)
@@ -225,23 +238,22 @@ func DescontarStockOnline(idOnline int64) {
 	}
 
 	for _, d := range detalles {
-		// Verificar si el producto tiene receta
 		var tieneReceta int
 		bases.DB.QueryRow("SELECT COUNT(*) FROM recetas WHERE id_pro=?", d.idPro).Scan(&tieneReceta)
 
 		if tieneReceta > 0 {
-			// Tiene receta: descontar ingredientes
 			recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
 			if err != nil {
 				log.Println("Error al obtener receta del producto:", d.idPro, err)
 				continue
 			}
 			for recetas.Next() {
-				var idIng, cantRec int
+				var idIng int
+				var cantRec float64
 				recetas.Scan(&idIng, &cantRec)
 				_, err := bases.DB.Exec(
 					"UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?",
-					cantRec*d.cantidad, idIng,
+					cantRec*float64(d.cantidad), idIng,
 				)
 				if err != nil {
 					log.Println("Error al descontar ingrediente:", idIng, err)
@@ -249,7 +261,6 @@ func DescontarStockOnline(idOnline int64) {
 			}
 			recetas.Close()
 		} else {
-			// Sin receta: descontar por nombre del producto
 			var nombrePro string
 			bases.DB.QueryRow("SELECT nombre FROM productos WHERE id_pro=?", d.idPro).Scan(&nombrePro)
 			res, err := bases.DB.Exec(
