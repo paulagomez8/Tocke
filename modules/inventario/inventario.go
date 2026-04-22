@@ -20,6 +20,7 @@ type Ingrediente struct {
 }
 
 type RecetaItem struct {
+	ID        int
 	IDIng     int
 	NombreIng string
 	Cantidad  float64
@@ -41,7 +42,6 @@ type InventarioData struct {
 func VerInventario(ctx *fasthttp.RequestCtx) {
 	var data InventarioData
 
-	// Obtener ingredientes
 	rows, err := bases.DB.Query("SELECT id_ing, nombre, stock, stock_minimo, unidad, precio_compra FROM ingredientes ORDER BY nombre")
 	if err != nil {
 		log.Println("Error al obtener ingredientes:", err)
@@ -56,13 +56,11 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 	}
 	rows.Close()
 
-	// Mapa precio_compra por id para calcular costos
 	precioMap := map[int]float64{}
 	for _, ing := range data.Ingredientes {
 		precioMap[ing.ID] = ing.PrecioCompra
 	}
 
-	// Obtener todos los productos
 	rowsPro, err := bases.DB.Query("SELECT id_pro, nombre FROM productos ORDER BY nombre")
 	if err != nil {
 		log.Println("Error al obtener productos:", err)
@@ -75,7 +73,7 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 		rowsPro.Scan(&p.ID, &p.Nombre)
 
 		rowsRec, err := bases.DB.Query(`
-			SELECT r.id_ing, i.nombre, r.cantidad
+			SELECT r.id, r.id_ing, i.nombre, r.cantidad
 			FROM recetas r
 			JOIN ingredientes i ON r.id_ing = i.id_ing
 			WHERE r.id_pro = ?
@@ -84,7 +82,7 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 			defer rowsRec.Close()
 			for rowsRec.Next() {
 				var r RecetaItem
-				rowsRec.Scan(&r.IDIng, &r.NombreIng, &r.Cantidad)
+				rowsRec.Scan(&r.ID, &r.IDIng, &r.NombreIng, &r.Cantidad)
 				r.Costo = r.Cantidad * precioMap[r.IDIng]
 				p.CostoTotal += r.Costo
 				p.Receta = append(p.Receta, r)
@@ -136,6 +134,15 @@ func AgregarReceta(ctx *fasthttp.RequestCtx) {
 	idIng, _ := strconv.Atoi(string(ctx.FormValue("id_ing")))
 	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
 	bases.DB.Exec("INSERT INTO recetas (id_pro, id_ing, cantidad) VALUES (?, ?, ?)", idPro, idIng, cantidad)
+	ctx.Redirect("/inventario", 302)
+}
+
+func EditarReceta(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.Atoi(ctx.UserValue("id").(string))
+	idPro, _ := strconv.Atoi(string(ctx.FormValue("id_pro")))
+	idIng, _ := strconv.Atoi(string(ctx.FormValue("id_ing")))
+	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
+	bases.DB.Exec("UPDATE recetas SET id_pro=?, id_ing=?, cantidad=? WHERE id=?", idPro, idIng, cantidad, id)
 	ctx.Redirect("/inventario", 302)
 }
 
