@@ -53,6 +53,7 @@ func main() {
 	r.GET("/inventario/ingrediente/eliminar/{id}", proteger(inventario.EliminarIngrediente))
 	r.POST("/inventario/receta/agregar/{id}", proteger(inventario.AgregarReceta))
 	r.GET("/inventario/receta/eliminar/{idpro}/{idping}", proteger(inventario.EliminarReceta))
+	r.POST("/inventario/receta/editar/{id}", proteger(inventario.EditarReceta)) // ← agregar
 	r.POST("/admin/categoria/editar/{id}", proteger(admin.EditarCategoria))
 	r.POST("/admin/modificador/editar/{id}", proteger(admin.EditarModificador))
 	r.POST("/mesa/liberar/{id}", proteger(pedidos.LiberarMesa))
