@@ -79,7 +79,15 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 			WHERE r.id_pro = ?
 		`, p.ID)
 		if err == nil {
-			defer rowsRec.Close()
+    for rowsRec.Next() {
+        var r RecetaItem
+        rowsRec.Scan(&r.ID, &r.IDIng, &r.NombreIng, &r.Cantidad)
+        r.Costo = r.Cantidad * precioMap[r.IDIng]
+        p.CostoTotal += r.Costo
+        p.Receta = append(p.Receta, r)
+    }
+    rowsRec.Close()  // ← cierre inmediato, sin defer
+}
 			for rowsRec.Next() {
 				var r RecetaItem
 				rowsRec.Scan(&r.ID, &r.IDIng, &r.NombreIng, &r.Cantidad)
