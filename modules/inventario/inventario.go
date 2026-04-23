@@ -24,6 +24,7 @@ type RecetaItem struct {
 	IDIng     int
 	NombreIng string
 	Cantidad  float64
+	Unidad    string // unidad de la receta (puede ser g, kg, ml, lt, un)
 	Costo     float64
 }
 
@@ -37,6 +38,34 @@ type ProductoReceta struct {
 type InventarioData struct {
 	Ingredientes []Ingrediente
 	Productos    []ProductoReceta
+}
+
+// convertirAUnidadBase convierte la cantidad de la unidad de la receta a la unidad base del ingrediente.
+// Ej: 50g → 0.05kg, 200ml → 0.2lt, 1un → 1un
+func convertirAUnidadBase(cantidad float64, unidadReceta string, unidadIngrediente string) float64 {
+	if unidadReceta == unidadIngrediente {
+		return cantidad
+	}
+	switch unidadReceta {
+	case "g":
+		if unidadIngrediente == "kg" {
+			return cantidad / 1000
+		}
+	case "ml":
+		if unidadIngrediente == "lt" {
+			return cantidad / 1000
+		}
+	case "kg":
+		if unidadIngrediente == "g" {
+			return cantidad * 1000
+		}
+	case "lt":
+		if unidadIngrediente == "ml" {
+			return cantidad * 1000
+		}
+	}
+	// Si no hay conversión conocida, devolver la cantidad sin cambios
+	return cantidad
 }
 
 func VerInventario(ctx *fasthttp.RequestCtx) {
@@ -56,9 +85,10 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 	}
 	rows.Close()
 
-	precioMap := map[int]float64{}
+	// Mapa id → ingrediente completo (para precio y unidad base)
+	ingMap := map[int]Ingrediente{}
 	for _, ing := range data.Ingredientes {
-		precioMap[ing.ID] = ing.PrecioCompra
+		ingMap[ing.ID] = ing
 	}
 
 	rowsPro, err := bases.DB.Query("SELECT id_pro, nombre FROM productos ORDER BY nombre")
@@ -68,12 +98,13 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	defer rowsPro.Close()
+
 	for rowsPro.Next() {
 		var p ProductoReceta
 		rowsPro.Scan(&p.ID, &p.Nombre)
 
 		rowsRec, err := bases.DB.Query(`
-			SELECT r.id, r.id_ing, i.nombre, r.cantidad
+			SELECT r.id, r.id_ing, i.nombre, r.cantidad, r.unidad
 			FROM recetas r
 			JOIN ingredientes i ON r.id_ing = i.id_ing
 			WHERE r.id_pro = ?
@@ -81,8 +112,11 @@ func VerInventario(ctx *fasthttp.RequestCtx) {
 		if err == nil {
 			for rowsRec.Next() {
 				var r RecetaItem
-				rowsRec.Scan(&r.ID, &r.IDIng, &r.NombreIng, &r.Cantidad)
-				r.Costo = r.Cantidad * precioMap[r.IDIng]
+				rowsRec.Scan(&r.ID, &r.IDIng, &r.NombreIng, &r.Cantidad, &r.Unidad)
+				ing := ingMap[r.IDIng]
+				// Convertir a unidad base para calcular costo correctamente
+				cantidadBase := convertirAUnidadBase(r.Cantidad, r.Unidad, ing.Unidad)
+				r.Costo = cantidadBase * ing.PrecioCompra
 				p.CostoTotal += r.Costo
 				p.Receta = append(p.Receta, r)
 			}
@@ -133,7 +167,8 @@ func AgregarReceta(ctx *fasthttp.RequestCtx) {
 	idPro, _ := strconv.Atoi(ctx.UserValue("id").(string))
 	idIng, _ := strconv.Atoi(string(ctx.FormValue("id_ing")))
 	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
-	bases.DB.Exec("INSERT INTO recetas (id_pro, id_ing, cantidad) VALUES (?, ?, ?)", idPro, idIng, cantidad)
+	unidad := string(ctx.FormValue("unidad"))
+	bases.DB.Exec("INSERT INTO recetas (id_pro, id_ing, cantidad, unidad) VALUES (?, ?, ?, ?)", idPro, idIng, cantidad, unidad)
 	ctx.Redirect("/inventario", 302)
 }
 
@@ -142,7 +177,8 @@ func EditarReceta(ctx *fasthttp.RequestCtx) {
 	idPro, _ := strconv.Atoi(string(ctx.FormValue("id_pro")))
 	idIng, _ := strconv.Atoi(string(ctx.FormValue("id_ing")))
 	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
-	bases.DB.Exec("UPDATE recetas SET id_pro=?, id_ing=?, cantidad=? WHERE id=?", idPro, idIng, cantidad, id)
+	unidad := string(ctx.FormValue("unidad"))
+	bases.DB.Exec("UPDATE recetas SET id_pro=?, id_ing=?, cantidad=?, unidad=? WHERE id=?", idPro, idIng, cantidad, unidad, id)
 	ctx.Redirect("/inventario", 302)
 }
 
@@ -200,16 +236,19 @@ func DescontarStock(idPedido int64) {
 		log.Printf(">>> producto %d cantidad %d tieneReceta %d\n", d.idPro, d.cantidad, tieneReceta)
 
 		if tieneReceta > 0 {
-			recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
+			recetas, err := bases.DB.Query("SELECT r.id_ing, r.cantidad, r.unidad, i.unidad FROM recetas r JOIN ingredientes i ON r.id_ing = i.id_ing WHERE r.id_pro=?", d.idPro)
 			if err != nil {
 				continue
 			}
 			for recetas.Next() {
 				var idIng int
 				var cantRec float64
-				recetas.Scan(&idIng, &cantRec)
-				log.Printf(">>> descontando ingrediente %d cantidad %f\n", idIng, cantRec*float64(d.cantidad))
-				bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", cantRec*float64(d.cantidad), idIng)
+				var unidadRec, unidadIng string
+				recetas.Scan(&idIng, &cantRec, &unidadRec, &unidadIng)
+				cantidadBase := convertirAUnidadBase(cantRec, unidadRec, unidadIng)
+				total := cantidadBase * float64(d.cantidad)
+				log.Printf(">>> descontando ingrediente %d: %.4f %s → %.4f %s\n", idIng, cantRec, unidadRec, total, unidadIng)
+				bases.DB.Exec("UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?", total, idIng)
 			}
 			recetas.Close()
 		} else {
@@ -249,7 +288,7 @@ func DescontarStockOnline(idOnline int64) {
 		bases.DB.QueryRow("SELECT COUNT(*) FROM recetas WHERE id_pro=?", d.idPro).Scan(&tieneReceta)
 
 		if tieneReceta > 0 {
-			recetas, err := bases.DB.Query("SELECT id_ing, cantidad FROM recetas WHERE id_pro=?", d.idPro)
+			recetas, err := bases.DB.Query("SELECT r.id_ing, r.cantidad, r.unidad, i.unidad FROM recetas r JOIN ingredientes i ON r.id_ing = i.id_ing WHERE r.id_pro=?", d.idPro)
 			if err != nil {
 				log.Println("Error al obtener receta del producto:", d.idPro, err)
 				continue
@@ -257,10 +296,13 @@ func DescontarStockOnline(idOnline int64) {
 			for recetas.Next() {
 				var idIng int
 				var cantRec float64
-				recetas.Scan(&idIng, &cantRec)
+				var unidadRec, unidadIng string
+				recetas.Scan(&idIng, &cantRec, &unidadRec, &unidadIng)
+				cantidadBase := convertirAUnidadBase(cantRec, unidadRec, unidadIng)
+				total := cantidadBase * float64(d.cantidad)
 				_, err := bases.DB.Exec(
 					"UPDATE ingredientes SET stock = stock - ? WHERE id_ing=?",
-					cantRec*float64(d.cantidad), idIng,
+					total, idIng,
 				)
 				if err != nil {
 					log.Println("Error al descontar ingrediente:", idIng, err)

@@ -41,7 +41,11 @@
             <input type="text" name="nombre" placeholder="Nombre" required>
             <input type="number" name="stock" placeholder="Stock inicial" required step="0.01" style="width:120px">
             <input type="number" name="stock_minimo" placeholder="Stock mínimo" required step="0.01" style="width:130px">
-            <input type="text" name="unidad" placeholder="Unidad (kg, unidad...)" required style="width:150px">
+            <select name="unidad" required>
+                <option value="kg">kg</option>
+                <option value="lt">lt</option>
+                <option value="un">un</option>
+            </select>
             <input type="number" name="precio_compra" placeholder="Precio compra" required step="0.01" style="width:130px">
             <button class="btn btn-green" type="submit">+ Agregar</button>
         </form>
@@ -74,25 +78,27 @@
     <div class="seccion">
         <h2>Recetas por Producto</h2>
         <table>
-            <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Costo</th><th>Acciones</th></tr>
+            <tr><th>Producto</th><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th>Costo</th><th>Acciones</th></tr>
             {{range .Productos}}
             {{$idPro := .ID}}
             {{if .Receta}}
             <tr>
-                <td colspan="5" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
+                <td colspan="6" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
             </tr>
             {{range .Receta}}
             <tr>
                 <td></td>
                 <td>{{.NombreIng}}</td>
                 <td>{{.Cantidad}}</td>
-                <td>${{.Costo}}</td>
+                <td>{{.Unidad}}</td>
+                <td>${{printf "%.2f" .Costo}}</td>
                 <td style="display:flex; gap:5px;">
                     <button class="btn btn-blue"
                         data-id="{{.ID}}"
                         data-idpro="{{$idPro}}"
                         data-iding="{{.IDIng}}"
                         data-cantidad="{{.Cantidad}}"
+                        data-unidad="{{.Unidad}}"
                         onclick="abrirEditarReceta(this)">Editar</button>
                     <button class="btn btn-red" onclick="if(confirm('¿Eliminar?')) window.location='/inventario/receta/eliminar/{{$idPro}}/{{.IDIng}}'">Eliminar</button>
                 </td>
@@ -100,21 +106,28 @@
             {{end}}
             <tr>
                 <td></td>
-                <td colspan="2" style="text-align:right; font-weight:bold;">Costo total:</td>
-                <td class="costo-total">${{.CostoTotal}}</td>
+                <td colspan="3" style="text-align:right; font-weight:bold;">Costo total:</td>
+                <td class="costo-total">${{printf "%.2f" .CostoTotal}}</td>
                 <td></td>
             </tr>
             {{end}}
             <tr>
                 <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
-                <td colspan="4">
+                <td colspan="5">
                     <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}">
                         <select name="id_ing" required>
                             {{range $.Ingredientes}}
-                            <option value="{{.ID}}">{{.Nombre}}</option>
+                            <option value="{{.ID}}">{{.Nombre}} ({{.Unidad}})</option>
                             {{end}}
                         </select>
-                        <input type="number" name="cantidad" placeholder="Cantidad" required step="0.01" style="width:80px">
+                        <input type="number" name="cantidad" placeholder="Cantidad" required step="0.0001" style="width:80px">
+                        <select name="unidad" required>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="lt">lt</option>
+                            <option value="ml">ml</option>
+                            <option value="un">un</option>
+                        </select>
                         <button class="btn btn-green" type="submit">+ Agregar</button>
                     </form>
                 </td>
@@ -131,7 +144,11 @@
                 <input type="text" name="nombre" id="editNombre" placeholder="Nombre" required>
                 <input type="number" name="stock" id="editStock" placeholder="Stock actual" required step="0.01">
                 <input type="number" name="stock_minimo" id="editMinimo" placeholder="Stock mínimo" required step="0.01">
-                <input type="text" name="unidad" id="editUnidad" placeholder="Unidad (kg, unidad...)" required>
+                <select name="unidad" id="editUnidad" required>
+                    <option value="kg">kg</option>
+                    <option value="lt">lt</option>
+                    <option value="un">un</option>
+                </select>
                 <input type="number" name="precio_compra" id="editPrecio" placeholder="Precio compra" required step="0.01">
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditar()">Cancelar</button>
@@ -155,11 +172,19 @@
                 <label style="font-size:13px; color:#555;">Ingrediente</label>
                 <select name="id_ing" id="recetaIdIng" required>
                     {{range .Ingredientes}}
-                    <option value="{{.ID}}">{{.Nombre}}</option>
+                    <option value="{{.ID}}">{{.Nombre}} ({{.Unidad}})</option>
                     {{end}}
                 </select>
                 <label style="font-size:13px; color:#555;">Cantidad</label>
                 <input type="number" name="cantidad" id="recetaCantidad" placeholder="Cantidad" required step="0.0001">
+                <label style="font-size:13px; color:#555;">Unidad</label>
+                <select name="unidad" id="recetaUnidad" required>
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="lt">lt</option>
+                    <option value="ml">ml</option>
+                    <option value="un">un</option>
+                </select>
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditarReceta()">Cancelar</button>
                     <button type="submit" class="btn btn-green">Guardar</button>
@@ -188,6 +213,7 @@
             document.getElementById('recetaIdPro').value = btn.getAttribute('data-idpro');
             document.getElementById('recetaIdIng').value = btn.getAttribute('data-iding');
             document.getElementById('recetaCantidad').value = btn.getAttribute('data-cantidad');
+            document.getElementById('recetaUnidad').value = btn.getAttribute('data-unidad');
             document.getElementById('modalEditarReceta').classList.add('activo');
         }
         function cerrarEditarReceta() {
