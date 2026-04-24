@@ -194,30 +194,30 @@
     </div>
 
     <script>
-        function agregarReceta(event, idPro) {
-            event.preventDefault();
-            var form = event.target;
-            var data = new FormData(form);
-            fetch('/inventario/receta/agregar/' + idPro, {
-                method: 'POST',
-                body: data
-            }).then(function() {
-                window.location = '/inventario#producto-' + idPro;
-            });
-        }
+       function agregarReceta(event, idPro) {
+    event.preventDefault();
+    var form = event.target;
+    var data = new FormData(form);
+    fetch('/inventario/receta/agregar/' + idPro, {
+        method: 'POST',
+        body: data
+    }).then(function() {
+        location.replace('/inventario#producto-' + idPro);
+    });
+}
 
-        function guardarReceta() {
-            var form = document.getElementById('formEditarReceta');
-            var data = new FormData(form);
-            var idPro = document.getElementById('recetaIdPro').value;
-            fetch(form.action, {
-                method: 'POST',
-                body: data
-            }).then(function() {
-                cerrarEditarReceta();
-                window.location = '/inventario#producto-' + idPro;
-            });
-        }
+function guardarReceta() {
+    var form = document.getElementById('formEditarReceta');
+    var data = new FormData(form);
+    var idPro = document.getElementById('recetaIdPro').value;
+    fetch(form.action, {
+        method: 'POST',
+        body: data
+    }).then(function() {
+        cerrarEditarReceta();
+        location.replace('/inventario#producto-' + idPro);
+    });
+}
 
         function abrirEditar(btn) {
             document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + btn.getAttribute('data-id');
