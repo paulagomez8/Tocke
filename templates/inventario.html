@@ -34,6 +34,9 @@
     <a class="back" href="/inicio">← Volver al inicio</a>
     <h1>Inventario</h1>
 
+    <!-- iframe oculto para recibir respuestas de forms sin recargar -->
+    <iframe name="hiddenFrame" style="display:none"></iframe>
+
     <!-- Ingredientes -->
     <div class="seccion">
         <h2>Ingredientes</h2>
@@ -114,7 +117,7 @@
             <tr id="producto-{{.ID}}">
                 <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
                 <td colspan="5">
-                    <form class="form-inline" onsubmit="agregarReceta(event, {{.ID}})">
+                    <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}" target="hiddenFrame" onsubmit="recargarDespues({{.ID}})">
                         <select name="id_ing" required>
                             {{range $.Ingredientes}}
                             <option value="{{.ID}}">{{.Nombre}} ({{.Unidad}})</option>
@@ -162,7 +165,7 @@
     <div class="modal" id="modalEditarReceta">
         <div class="modal-box">
             <h3>Editar Receta</h3>
-            <form id="formEditarReceta">
+            <form id="formEditarReceta" method="POST" target="hiddenFrame">
                 <label style="font-size:13px; color:#555;">Producto</label>
                 <select name="id_pro" id="recetaIdPro" required>
                     {{range .Productos}}
@@ -187,43 +190,26 @@
                 </select>
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditarReceta()">Cancelar</button>
-                    <button type="button" class="btn btn-green" onclick="guardarReceta()">Guardar</button>
+                    <button type="submit" class="btn btn-green" onclick="guardarReceta()">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-     function agregarReceta(event, idPro) {
-    event.preventDefault();
-    var form = event.target;
-    var data = new URLSearchParams(new FormData(form));
-    fetch('/inventario/receta/agregar/' + idPro, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: data
-    }).then(function() {
-       setTimeout(function() {
-            location.replace('/inventario#producto-' + idPro);
-        }, 300);
-    });
-}
+        function recargarDespues(idPro) {
+            setTimeout(function() {
+                location.replace('/inventario#producto-' + idPro);
+            }, 500);
+        }
 
-function guardarReceta() {
-    var form = document.getElementById('formEditarReceta');
-    var data = new URLSearchParams(new FormData(form));
-    var idPro = document.getElementById('recetaIdPro').value;
-    fetch(form.action, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: data
-    }).then(function() {
-        cerrarEditarReceta();
-      setTimeout(function() {
-            location.replace('/inventario#producto-' + idPro);
-        }, 300);
-    });
-}
+        function guardarReceta() {
+            var idPro = document.getElementById('recetaIdPro').value;
+            cerrarEditarReceta();
+            setTimeout(function() {
+                location.replace('/inventario#producto-' + idPro);
+            }, 500);
+        }
 
         function abrirEditar(btn) {
             document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + btn.getAttribute('data-id');
