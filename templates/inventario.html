@@ -194,12 +194,13 @@
     </div>
 
     <script>
-       function agregarReceta(event, idPro) {
+     function agregarReceta(event, idPro) {
     event.preventDefault();
     var form = event.target;
-    var data = new FormData(form);
+    var data = new URLSearchParams(new FormData(form));
     fetch('/inventario/receta/agregar/' + idPro, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data
     }).then(function() {
         location.replace('/inventario#producto-' + idPro);
@@ -208,10 +209,11 @@
 
 function guardarReceta() {
     var form = document.getElementById('formEditarReceta');
-    var data = new FormData(form);
+    var data = new URLSearchParams(new FormData(form));
     var idPro = document.getElementById('recetaIdPro').value;
     fetch(form.action, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data
     }).then(function() {
         cerrarEditarReceta();
