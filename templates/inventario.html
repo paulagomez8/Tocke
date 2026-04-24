@@ -197,10 +197,15 @@
     </div>
 
     <script>
-      function recargarDespues(idPro) {
+     var iframeReady = false;
+
+function recargarDespues(idPro) {
     var iframe = document.getElementById('hiddenFrame');
     iframe.onload = function() {
-        location.replace('/inventario#producto-' + idPro);
+        if (iframeReady) {
+            location.replace('/inventario#producto-' + idPro);
+        }
+        iframeReady = true;
     };
 }
 
@@ -209,7 +214,10 @@ function guardarReceta() {
     var iframe = document.getElementById('hiddenFrame');
     cerrarEditarReceta();
     iframe.onload = function() {
-        location.replace('/inventario#producto-' + idPro);
+        if (iframeReady) {
+            location.replace('/inventario#producto-' + idPro);
+        }
+        iframeReady = true;
     };
 }
 
