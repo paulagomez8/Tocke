@@ -82,16 +82,16 @@
             {{range .Productos}}
             {{$idPro := .ID}}
             {{if .Receta}}
-            <tr>
-                <td colspan="6" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
-            </tr>
+           <tr id="producto-{{$idPro}}">
+    <td colspan="6" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
+</tr>
             {{range .Receta}}
             <tr>
                 <td></td>
                 <td>{{.NombreIng}}</td>
                 <td>{{.Cantidad}}</td>
                 <td>{{.Unidad}}</td>
-                <td>${{printf "%.2f" .Costo}}</td>
+                <td>${{printf "%.0f" .Costo}}</td>
                 <td style="display:flex; gap:5px;">
                     <button class="btn btn-blue"
                         data-id="{{.ID}}"
@@ -107,14 +107,14 @@
             <tr>
                 <td></td>
                 <td colspan="3" style="text-align:right; font-weight:bold;">Costo total:</td>
-                <td class="costo-total">${{printf "%.2f" .CostoTotal}}</td>
+                <td class="costo-total">${{printf "%.0f" .CostoTotal}}</td>
                 <td></td>
             </tr>
             {{end}}
-            <tr>
-                <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
+            <tr id="producto-{{.ID}}">
+    <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
                 <td colspan="5">
-                    <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}">
+                    <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}" onsubmit="guardarScroll()">
                         <select name="id_ing" required>
                             {{range $.Ingredientes}}
                             <option value="{{.ID}}">{{.Nombre}} ({{.Unidad}})</option>
@@ -187,13 +187,25 @@
                 </select>
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditarReceta()">Cancelar</button>
-                    <button type="submit" class="btn btn-green">Guardar</button>
+                    <button type="submit" class="btn btn-green" onclick="guardarScroll()">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
+        window.onload = function() {
+            var pos = sessionStorage.getItem('scrollPos');
+            if (pos) {
+                window.scrollTo(0, parseInt(pos));
+                sessionStorage.removeItem('scrollPos');
+            }
+        }
+
+        function guardarScroll() {
+            sessionStorage.setItem('scrollPos', window.scrollY);
+        }
+
         function abrirEditar(btn) {
             document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + btn.getAttribute('data-id');
             document.getElementById('editNombre').value = btn.getAttribute('data-nombre');

@@ -169,7 +169,7 @@ func AgregarReceta(ctx *fasthttp.RequestCtx) {
 	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
 	unidad := string(ctx.FormValue("unidad"))
 	bases.DB.Exec("INSERT INTO recetas (id_pro, id_ing, cantidad, unidad) VALUES (?, ?, ?, ?)", idPro, idIng, cantidad, unidad)
-	ctx.Redirect("/inventario", 302)
+	ctx.Redirect("/inventario#producto-"+strconv.Itoa(idPro), 302)
 }
 
 func EditarReceta(ctx *fasthttp.RequestCtx) {
@@ -179,7 +179,7 @@ func EditarReceta(ctx *fasthttp.RequestCtx) {
 	cantidad, _ := strconv.ParseFloat(string(ctx.FormValue("cantidad")), 64)
 	unidad := string(ctx.FormValue("unidad"))
 	bases.DB.Exec("UPDATE recetas SET id_pro=?, id_ing=?, cantidad=?, unidad=? WHERE id=?", idPro, idIng, cantidad, unidad, id)
-	ctx.Redirect("/inventario", 302)
+	ctx.Redirect("/inventario#producto-"+strconv.Itoa(idPro), 302)
 }
 
 func EliminarReceta(ctx *fasthttp.RequestCtx) {
