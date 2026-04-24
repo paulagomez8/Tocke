@@ -35,7 +35,7 @@
     <h1>Inventario</h1>
 
     <!-- iframe oculto para recibir respuestas de forms sin recargar -->
-    <iframe name="hiddenFrame" style="display:none"></iframe>
+    <iframe id="hiddenFrame" style="display:none"></iframe>
 
     <!-- Ingredientes -->
     <div class="seccion">
@@ -197,19 +197,21 @@
     </div>
 
     <script>
-        function recargarDespues(idPro) {
-            setTimeout(function() {
-                location.replace('/inventario#producto-' + idPro);
-            }, 500);
-        }
+      function recargarDespues(idPro) {
+    var iframe = document.getElementById('hiddenFrame');
+    iframe.onload = function() {
+        location.replace('/inventario#producto-' + idPro);
+    };
+}
 
-        function guardarReceta() {
-            var idPro = document.getElementById('recetaIdPro').value;
-            cerrarEditarReceta();
-            setTimeout(function() {
-                location.replace('/inventario#producto-' + idPro);
-            }, 500);
-        }
+function guardarReceta() {
+    var idPro = document.getElementById('recetaIdPro').value;
+    var iframe = document.getElementById('hiddenFrame');
+    cerrarEditarReceta();
+    iframe.onload = function() {
+        location.replace('/inventario#producto-' + idPro);
+    };
+}
 
         function abrirEditar(btn) {
             document.getElementById('formEditar').action = '/inventario/ingrediente/editar/' + btn.getAttribute('data-id');
