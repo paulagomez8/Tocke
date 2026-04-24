@@ -203,7 +203,9 @@
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data
     }).then(function() {
-        location.replace('/inventario#producto-' + idPro);
+       setTimeout(function() {
+            location.replace('/inventario#producto-' + idPro);
+        }, 300);
     });
 }
 
@@ -217,7 +219,9 @@ function guardarReceta() {
         body: data
     }).then(function() {
         cerrarEditarReceta();
-        location.replace('/inventario#producto-' + idPro);
+      setTimeout(function() {
+            location.replace('/inventario#producto-' + idPro);
+        }, 300);
     });
 }
 
