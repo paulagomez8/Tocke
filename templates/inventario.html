@@ -82,9 +82,9 @@
             {{range .Productos}}
             {{$idPro := .ID}}
             {{if .Receta}}
-           <tr id="producto-{{$idPro}}">
-    <td colspan="6" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
-</tr>
+            <tr id="producto-{{$idPro}}">
+                <td colspan="6" style="background:#eee; font-weight:bold;">{{.Nombre}}</td>
+            </tr>
             {{range .Receta}}
             <tr>
                 <td></td>
@@ -112,9 +112,9 @@
             </tr>
             {{end}}
             <tr id="producto-{{.ID}}">
-    <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
+                <td style="background:#f4f4f4; font-weight:bold;">{{.Nombre}}</td>
                 <td colspan="5">
-                    <form class="form-inline" method="POST" action="/inventario/receta/agregar/{{.ID}}" onsubmit="guardarScroll()">
+                    <form class="form-inline" onsubmit="agregarReceta(event, {{.ID}})">
                         <select name="id_ing" required>
                             {{range $.Ingredientes}}
                             <option value="{{.ID}}">{{.Nombre}} ({{.Unidad}})</option>
@@ -162,7 +162,7 @@
     <div class="modal" id="modalEditarReceta">
         <div class="modal-box">
             <h3>Editar Receta</h3>
-            <form method="POST" id="formEditarReceta">
+            <form id="formEditarReceta">
                 <label style="font-size:13px; color:#555;">Producto</label>
                 <select name="id_pro" id="recetaIdPro" required>
                     {{range .Productos}}
@@ -187,23 +187,36 @@
                 </select>
                 <div class="modal-btns">
                     <button type="button" class="btn btn-red" onclick="cerrarEditarReceta()">Cancelar</button>
-                    <button type="submit" class="btn btn-green" onclick="guardarScroll()">Guardar</button>
+                    <button type="button" class="btn btn-green" onclick="guardarReceta()">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        window.onload = function() {
-            var pos = sessionStorage.getItem('scrollPos');
-            if (pos) {
-                window.scrollTo(0, parseInt(pos));
-                sessionStorage.removeItem('scrollPos');
-            }
+        function agregarReceta(event, idPro) {
+            event.preventDefault();
+            var form = event.target;
+            var data = new FormData(form);
+            fetch('/inventario/receta/agregar/' + idPro, {
+                method: 'POST',
+                body: data
+            }).then(function() {
+                window.location = '/inventario#producto-' + idPro;
+            });
         }
 
-        function guardarScroll() {
-            sessionStorage.setItem('scrollPos', window.scrollY);
+        function guardarReceta() {
+            var form = document.getElementById('formEditarReceta');
+            var data = new FormData(form);
+            var idPro = document.getElementById('recetaIdPro').value;
+            fetch(form.action, {
+                method: 'POST',
+                body: data
+            }).then(function() {
+                cerrarEditarReceta();
+                window.location = '/inventario#producto-' + idPro;
+            });
         }
 
         function abrirEditar(btn) {
